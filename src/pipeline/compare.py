@@ -28,6 +28,11 @@ def _isolated_settings(base: AppSettings, suffix: str) -> AppSettings:
         phase2_max_distance_m=base.phase2_max_distance_m,
         phase2_stay_min_duration_seconds=base.phase2_stay_min_duration_seconds,
         phase2_stay_min_pings=base.phase2_stay_min_pings,
+        phase2_unknown_accuracy_m=base.phase2_unknown_accuracy_m,
+        phase2_night_gap_seconds=base.phase2_night_gap_seconds,
+        phase2_night_start_hour=base.phase2_night_start_hour,
+        phase2_night_end_hour=base.phase2_night_end_hour,
+        phase2_night_max_distance_m=base.phase2_night_max_distance_m,
         phase4_top_devices_limit=base.phase4_top_devices_limit,
     )
 

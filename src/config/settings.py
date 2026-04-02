@@ -21,5 +21,10 @@ class AppSettings(BaseSettings):
     phase2_max_distance_m: float = Field(default=250.0)
     phase2_stay_min_duration_seconds: int = Field(default=600)
     phase2_stay_min_pings: int = Field(default=3)
+    phase2_unknown_accuracy_m: float = Field(default=50.0)
+    phase2_night_gap_seconds: int = Field(default=14400)
+    phase2_night_start_hour: int = Field(default=22)
+    phase2_night_end_hour: int = Field(default=6)
+    phase2_night_max_distance_m: float = Field(default=120.0)
     phase4_top_devices_limit: int = Field(default=5)
 

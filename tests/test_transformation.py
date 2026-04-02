@@ -113,3 +113,85 @@ def test_visit_summary_counts_are_consistent() -> None:
     summary = summarize_visits(visits)
     assert summary["counts_by_visit_kind"] == {"stay": 3, "pass_by": 1}
     assert summary["counts_by_stay_type"] == {"home": 1, "work": 1, "other": 1}
+
+
+def test_single_ping_is_pass_by() -> None:
+    pings = pl.DataFrame(
+        {
+            "device_id": ["dev_single"],
+            "ts_utc": ["2025-01-01T08:00:00Z"],
+            "latitude": [10.0],
+            "longitude": [20.0],
+            "accuracy_m": [0.0],
+        }
+    )
+    visits = group_pings_into_visits(pings)
+    assert visits.height == 1
+    assert visits["visit_kind"].to_list() == ["pass_by"]
+    assert visits["ping_count"].to_list() == [1]
+
+
+def test_accuracy_zero_is_strict_while_noisy_points_get_tolerance() -> None:
+    base = {
+        "device_id": ["dev_acc", "dev_acc"],
+        "ts_utc": ["2025-01-01T10:00:00Z", "2025-01-01T10:05:00Z"],
+        "latitude": [10.0, 10.0024],
+        "longitude": [20.0, 20.0],
+    }
+    perfect_accuracy = pl.DataFrame({**base, "accuracy_m": [0.0, 0.0]})
+    noisy_accuracy = pl.DataFrame({**base, "accuracy_m": [120.0, 120.0]})
+
+    strict_visits = group_pings_into_visits(
+        perfect_accuracy,
+        max_gap_seconds=900,
+        max_distance_m=250.0,
+    )
+    tolerant_visits = group_pings_into_visits(
+        noisy_accuracy,
+        max_gap_seconds=900,
+        max_distance_m=250.0,
+    )
+
+    assert strict_visits.height == 2
+    assert tolerant_visits.height == 1
+
+
+def test_night_gap_bridge_keeps_single_visit_but_day_gap_splits() -> None:
+    night_pings = pl.DataFrame(
+        {
+            "device_id": ["dev_night", "dev_night"],
+            "ts_utc": ["2025-01-01T23:00:00Z", "2025-01-02T01:00:00Z"],
+            "latitude": [10.0, 10.00001],
+            "longitude": [20.0, 20.00001],
+            "accuracy_m": [0.0, 0.0],
+        }
+    )
+    day_pings = pl.DataFrame(
+        {
+            "device_id": ["dev_day", "dev_day"],
+            "ts_utc": ["2025-01-01T12:00:00Z", "2025-01-01T14:00:00Z"],
+            "latitude": [10.0, 10.00001],
+            "longitude": [20.0, 20.00001],
+            "accuracy_m": [0.0, 0.0],
+        }
+    )
+
+    night_visits = group_pings_into_visits(
+        night_pings,
+        max_gap_seconds=900,
+        night_gap_seconds=10_800,
+        night_start_hour=22,
+        night_end_hour=6,
+        night_max_distance_m=120.0,
+    )
+    day_visits = group_pings_into_visits(
+        day_pings,
+        max_gap_seconds=900,
+        night_gap_seconds=10_800,
+        night_start_hour=22,
+        night_end_hour=6,
+        night_max_distance_m=120.0,
+    )
+
+    assert night_visits.height == 1
+    assert day_visits.height == 2

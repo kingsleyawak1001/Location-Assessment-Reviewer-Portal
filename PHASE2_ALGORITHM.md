@@ -12,8 +12,19 @@ This document describes how accepted pings become visit records in the current i
 For each device, a new visit is started when at least one condition is true:
 
 1. Current row is the first ping for the device.
-2. Time gap from previous ping exceeds `phase2_max_gap_seconds` (default `900`).
-3. Spatial jump from previous ping exceeds `phase2_max_distance_m` (default `250m`, haversine distance).
+2. Time gap from previous ping exceeds `phase2_max_gap_seconds` (default `900`), unless a night-gap bridge applies.
+3. Spatial jump from previous ping exceeds dynamic threshold:
+   `phase2_max_distance_m + max(prev_accuracy_m, curr_accuracy_m)` (haversine distance).
+
+Additional segmentation rules:
+
+- `accuracy_m = 0` is treated as perfect accuracy and contributes `0m` extra tolerance.
+- Missing accuracy is replaced with `phase2_unknown_accuracy_m` (default `50m`).
+- Night-gap bridge can keep one visit when all are true:
+  - `gap_seconds > phase2_max_gap_seconds`
+  - `gap_seconds <= phase2_night_gap_seconds` (default `14,400`)
+  - ping time is in night window (`phase2_night_start_hour..phase2_night_end_hour`, defaults `22..6`)
+  - `distance_from_prev_m <= phase2_night_max_distance_m` (default `120m`)
 
 This produces deterministic visit episodes (`device_id`, `visit_seq`).
 

@@ -92,6 +92,11 @@ def run_phase1(
             max_distance_m=settings.phase2_max_distance_m,
             stay_min_duration_seconds=settings.phase2_stay_min_duration_seconds,
             stay_min_pings=settings.phase2_stay_min_pings,
+            unknown_accuracy_m=settings.phase2_unknown_accuracy_m,
+            night_gap_seconds=settings.phase2_night_gap_seconds,
+            night_start_hour=settings.phase2_night_start_hour,
+            night_end_hour=settings.phase2_night_end_hour,
+            night_max_distance_m=settings.phase2_night_max_distance_m,
         )
         phase2_summary = summarize_visits(visits)
         step_durations_ms["transform_visits"] = step_elapsed_ms(transform_step_start_ns)

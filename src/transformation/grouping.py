@@ -63,6 +63,11 @@ def group_pings_into_visits(
     max_distance_m: float = 250.0,
     stay_min_duration_seconds: int = 600,
     stay_min_pings: int = 3,
+    unknown_accuracy_m: float = 50.0,
+    night_gap_seconds: int = 14_400,
+    night_start_hour: int = 22,
+    night_end_hour: int = 6,
+    night_max_distance_m: float = 120.0,
 ) -> pl.DataFrame:
     if accepted_df.height == 0:
         return pl.DataFrame(
@@ -95,6 +100,19 @@ def group_pings_into_visits(
                 pl.col("ts_dt").shift(1).over("device_id").alias("prev_ts_dt"),
                 pl.col("latitude").shift(1).over("device_id").alias("prev_latitude"),
                 pl.col("longitude").shift(1).over("device_id").alias("prev_longitude"),
+                pl.col("accuracy_m").shift(1).over("device_id").alias("prev_accuracy_m"),
+            ]
+        )
+        .with_columns(
+            [
+                pl.col("accuracy_m")
+                .fill_null(unknown_accuracy_m)
+                .clip(lower_bound=0.0)
+                .alias("accuracy_effective_m"),
+                pl.col("prev_accuracy_m")
+                .fill_null(unknown_accuracy_m)
+                .clip(lower_bound=0.0)
+                .alias("prev_accuracy_effective_m"),
             ]
         )
         .with_columns(
@@ -106,13 +124,43 @@ def group_pings_into_visits(
                     pl.col("prev_latitude"),
                     pl.col("prev_longitude"),
                 ).alias("distance_from_prev_m"),
+                pl.max_horizontal(
+                    [pl.col("accuracy_effective_m"), pl.col("prev_accuracy_effective_m")]
+                )
+                .add(max_distance_m)
+                .alias("allowed_distance_m"),
+                pl.col("ts_dt").dt.hour().alias("hour_of_day"),
             ]
         )
         .with_columns(
             (
+                (
+                    (pl.col("hour_of_day") >= night_start_hour)
+                    | (pl.col("hour_of_day") <= night_end_hour)
+                )
+                if night_start_hour > night_end_hour
+                else (
+                    (pl.col("hour_of_day") >= night_start_hour)
+                    & (pl.col("hour_of_day") <= night_end_hour)
+                )
+            ).alias("is_night_hour"),
+        )
+        .with_columns(
+            (
+                (pl.col("gap_seconds") > max_gap_seconds)
+                & (pl.col("gap_seconds") <= night_gap_seconds)
+                & pl.col("is_night_hour")
+                & (pl.col("distance_from_prev_m") <= night_max_distance_m)
+            ).alias("is_night_gap_bridge"),
+        )
+        .with_columns(
+            (
                 pl.col("prev_ts_dt").is_null()
-                | (pl.col("gap_seconds") > max_gap_seconds)
-                | (pl.col("distance_from_prev_m") > max_distance_m)
+                | (
+                    (pl.col("gap_seconds") > max_gap_seconds)
+                    & ~pl.col("is_night_gap_bridge")
+                )
+                | (pl.col("distance_from_prev_m") > pl.col("allowed_distance_m"))
             )
             .cast(pl.Int64)
             .cum_sum()
