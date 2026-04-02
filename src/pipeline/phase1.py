@@ -12,6 +12,7 @@ from src.ingestion.csv_reader import read_raw_csv
 from src.quality.validator import quality_counts_by_reason, validate_quality
 from src.storage.artifact_store import ArtifactStore
 from src.storage.manifest_store import ManifestStore
+from src.transformation.grouping import group_pings_into_visits
 from src.utils.checksum import file_sha256
 from src.utils.logging import get_logger
 
@@ -33,7 +34,12 @@ def run_phase1(
         raise FileNotFoundError(f"Input file not found: {input_resolved}")
 
     manifest = ManifestStore(settings.manifest_path)
-    artifacts = ArtifactStore(settings.accepted_dir, settings.rejected_dir, settings.reports_dir)
+    artifacts = ArtifactStore(
+        settings.accepted_dir,
+        settings.rejected_dir,
+        settings.reports_dir,
+        settings.visits_dir,
+    )
     checksum = file_sha256(input_resolved)
 
     idempotency_step_start_ns = perf_counter_ns()
@@ -77,10 +83,16 @@ def run_phase1(
         accepted, rejected = validate_quality(ingested_df)
         step_durations_ms["quality_validation"] = step_elapsed_ms(quality_step_start_ns)
 
+        current_step = "transform_visits"
+        transform_step_start_ns = perf_counter_ns()
+        visits = group_pings_into_visits(accepted)
+        step_durations_ms["transform_visits"] = step_elapsed_ms(transform_step_start_ns)
+
         current_step = "persist_outputs"
         persist_step_start_ns = perf_counter_ns()
         accepted_path = artifacts.write_accepted(run_id, accepted)
         rejected_path = artifacts.write_rejected(run_id, rejected)
+        visits_path = artifacts.write_visits(run_id, visits)
         step_durations_ms["persist_outputs"] = step_elapsed_ms(persist_step_start_ns)
 
         current_step = "quality_aggregation"
@@ -103,6 +115,8 @@ def run_phase1(
             "counts_per_reason": counts_by_reason,
             "accepted_path": str(accepted_path),
             "rejected_path": str(rejected_path),
+            "visits_path": str(visits_path),
+            "visits_count": visits.height,
             "total_duration_ms": total_duration_ms,
             "step_durations_ms": step_durations_ms,
         }
@@ -140,6 +154,7 @@ def run_phase1(
                     "run_id": run_id,
                     "accepted": accepted.height,
                     "rejected": rejected.height,
+                    "visits": visits.height,
                     "algorithm": ingestion_algorithm,
                     "total_duration_ms": total_duration_ms,
                     "step_durations_ms": step_durations_ms,
@@ -159,6 +174,8 @@ def run_phase1(
             algorithm=ingestion_algorithm,
             total_duration_ms=total_duration_ms,
             step_durations_ms=step_durations_ms,
+            visits_count=visits.height,
+            visits_path=visits_path,
         )
     except Exception as exc:
         total_duration_ms = round((perf_counter_ns() - run_start_ns) / 1_000_000, 3)

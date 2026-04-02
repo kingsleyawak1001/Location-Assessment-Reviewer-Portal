@@ -13,6 +13,7 @@ class AppSettings(BaseSettings):
     manifest_path: Path = Field(default=Path("artifacts/manifest.db"))
     accepted_dir: Path = Field(default=Path("artifacts/accepted"))
     rejected_dir: Path = Field(default=Path("artifacts/rejected"))
+    visits_dir: Path = Field(default=Path("artifacts/visits"))
     reports_dir: Path = Field(default=Path("artifacts/reports"))
     log_level: str = Field(default="INFO")
 

@@ -15,6 +15,17 @@ class ManifestStatus(StrEnum):
     SKIPPED = "skipped"
 
 
+class VisitKind(StrEnum):
+    STAY = "stay"
+    PASS_BY = "pass_by"
+
+
+class StayType(StrEnum):
+    HOME = "home"
+    WORK = "work"
+    OTHER = "other"
+
+
 class ManifestRecord(BaseModel):
     file_path: str
     checksum: str
@@ -51,4 +62,6 @@ class QualityResult(BaseModel):
     algorithm: str
     total_duration_ms: float
     step_durations_ms: dict[str, float]
+    visits_count: int = 0
+    visits_path: Path | None = None
 

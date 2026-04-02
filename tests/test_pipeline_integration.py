@@ -15,6 +15,7 @@ def make_settings(tmp_path: Path) -> AppSettings:
         manifest_path=tmp_path / "artifacts/manifest.db",
         accepted_dir=tmp_path / "artifacts/accepted",
         rejected_dir=tmp_path / "artifacts/rejected",
+        visits_dir=tmp_path / "artifacts/visits",
         reports_dir=tmp_path / "artifacts/reports",
         log_level="INFO",
     )
@@ -26,15 +27,21 @@ def test_phase1_run_creates_artifacts_and_manifest(tmp_path: Path) -> None:
     assert result is not None
     assert result.accepted_path.exists()
     assert result.rejected_path.exists()
+    assert result.visits_path is not None
+    assert result.visits_path.exists()
     assert result.report_path.exists()
     assert result.total_duration_ms > 0
     assert "ingest_and_normalize" in result.step_durations_ms
     assert "quality_validation" in result.step_durations_ms
+    assert "transform_visits" in result.step_durations_ms
     assert "persist_outputs" in result.step_durations_ms
+    assert result.visits_count >= 0
     report = json.loads(result.report_path.read_text(encoding="utf-8"))
     assert report["total_duration_ms"] > 0
     assert "step_durations_ms" in report
     assert "write_report" in report["step_durations_ms"]
+    assert "visits_path" in report
+    assert "visits_count" in report
     manifest = ManifestStore(settings.manifest_path).load()
     assert manifest.height == 1
     assert manifest["status"][0] == "success"

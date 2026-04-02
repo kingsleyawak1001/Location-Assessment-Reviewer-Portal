@@ -44,6 +44,7 @@ def run_phase1_batch(
             settings.accepted_dir,
             settings.rejected_dir,
             settings.reports_dir,
+            settings.visits_dir,
         )
         report_path = artifacts.write_quality_report(batch_run_id, payload)
         payload["report_path"] = str(report_path)
@@ -119,6 +120,7 @@ def run_phase1_batch(
         settings.accepted_dir,
         settings.rejected_dir,
         settings.reports_dir,
+        settings.visits_dir,
     )
     report_path = artifacts.write_quality_report(batch_run_id, payload)
     payload["report_path"] = str(report_path)

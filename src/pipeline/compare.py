@@ -20,6 +20,7 @@ def _isolated_settings(base: AppSettings, suffix: str) -> AppSettings:
         manifest_path=artifacts_dir / "manifest.db",
         accepted_dir=artifacts_dir / "accepted",
         rejected_dir=artifacts_dir / "rejected",
+        visits_dir=artifacts_dir / "visits",
         reports_dir=artifacts_dir / "reports",
         log_level=base.log_level,
     )
@@ -121,7 +122,12 @@ def compare_phase1_algorithms(
             "quality": "tie" if output_consistent else "needs_review",
         },
     }
-    artifacts = ArtifactStore(settings.accepted_dir, settings.rejected_dir, settings.reports_dir)
+    artifacts = ArtifactStore(
+        settings.accepted_dir,
+        settings.rejected_dir,
+        settings.reports_dir,
+        settings.visits_dir,
+    )
     report_path = artifacts.write_quality_report(run_id, report)
     report["report_path"] = str(report_path)
     return report
