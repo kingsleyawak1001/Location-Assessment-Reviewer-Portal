@@ -34,9 +34,6 @@ Then open:
 
 ### Controls
 
-- `API Base URL`: base URL for all API requests.
-  - On GitHub Pages, if this is set to localhost, the playground auto-falls back to
-    built-in autonomous demo data.
 - `Preset Profile`: applies predefined map/journey parameters.
 - `Run Full Demo`: executes:
   1) resolve latest `raw_pings.csv` run,
@@ -128,8 +125,7 @@ the playground can still run end-to-end via built-in demo responses:
 - map analytics;
 - journey analytics.
 
-This mode is activated automatically when hosted remotely and `API Base URL`
-points to localhost.
+This mode is activated automatically when hosted remotely.
 
 ## Troubleshooting
 

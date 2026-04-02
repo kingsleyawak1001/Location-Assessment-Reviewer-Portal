@@ -6,7 +6,6 @@ const apiOutput = document.getElementById("apiOutput");
 const executionLog = document.getElementById("executionLog");
 const mapForm = document.getElementById("mapForm");
 const journeyForm = document.getElementById("journeyForm");
-const apiBaseInput = document.getElementById("apiBase");
 const presetProfile = document.getElementById("presetProfile");
 const presetDescription = document.getElementById("presetDescription");
 const dataSourceStatus = document.getElementById("dataSourceStatus");
@@ -24,6 +23,7 @@ let isFullDemoRunning = false;
 let liveUpdatesEnabled = true;
 let healthCheckTimerId = null;
 let useDemoMode = false;
+const defaultApiBase = "http://127.0.0.1:8000";
 const activityTimeline = document.getElementById("activityTimeline");
 const kpiEls = {
   apiLatency: document.getElementById("kpiApiLatency"),
@@ -615,7 +615,7 @@ async function findSampleDevice(source = "Auto load") {
 }
 
 function getApiBase() {
-  return document.getElementById("apiBase").value.trim().replace(/\/$/, "");
+  return defaultApiBase;
 }
 
 function getActiveRunId() {
@@ -1034,11 +1034,6 @@ function setLiveUpdates(isEnabled) {
 
 liveUpdatesToggle.addEventListener("change", () => {
   setLiveUpdates(liveUpdatesToggle.checked);
-});
-
-apiBaseInput.addEventListener("change", () => {
-  useDemoMode = shouldPreferDemoMode();
-  updateDataSourceStatus();
 });
 
 runFullDemoBtn.addEventListener("click", async () => {

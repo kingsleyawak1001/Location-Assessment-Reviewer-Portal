@@ -45,12 +45,12 @@ One-time GitHub setup:
    - `https://<github-username>.github.io/<repository-name>/`
 
 Important runtime note:
-- GitHub Pages hosts only static files. API calls from the playground must point to a reachable backend URL in `API Base URL` (not localhost).
+- GitHub Pages hosts only static files. The playground automatically switches to
+  built-in autonomous demo mode when hosted remotely.
 
 ## Notes
 
-- Keep API base URL in UI set to `http://127.0.0.1:8000`.
 - Live monitor behavior can be toggled via `Live updates`.
 - API playground charts are generated from live response payloads.
-- On GitHub Pages, when API Base URL points to localhost, the UI auto-switches to
-  built-in autonomous demo mode so mobile/remote testing still works without local backend.
+- On GitHub Pages, the UI auto-switches to built-in autonomous demo mode so
+  mobile/remote testing works without local backend.
