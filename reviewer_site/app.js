@@ -6,6 +6,8 @@ const apiOutput = document.getElementById("apiOutput");
 const executionLog = document.getElementById("executionLog");
 const mapForm = document.getElementById("mapForm");
 const journeyForm = document.getElementById("journeyForm");
+const apiBaseInput = document.getElementById("apiBase");
+const apiBaseHint = document.getElementById("apiBaseHint");
 const presetProfile = document.getElementById("presetProfile");
 const presetDescription = document.getElementById("presetDescription");
 const runFullDemoBtn = document.getElementById("runFullDemoBtn");
@@ -21,6 +23,9 @@ let activeRunId = "";
 let isFullDemoRunning = false;
 let liveUpdatesEnabled = true;
 let healthCheckTimerId = null;
+let lastRunRefreshAttemptMs = 0;
+const runRefreshCooldownMs = 4000;
+const apiBaseStorageKey = "reviewer_api_base";
 const activityTimeline = document.getElementById("activityTimeline");
 const kpiEls = {
   apiLatency: document.getElementById("kpiApiLatency"),
@@ -202,6 +207,50 @@ function setFormValues(formElement, values) {
   });
 }
 
+function isLocalPageHost() {
+  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+}
+
+function isLoopbackApiBase(baseUrl) {
+  try {
+    const parsed = new URL(baseUrl);
+    return ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function updateApiBaseHint() {
+  const base = getApiBase();
+  if (!base) {
+    apiBaseHint.textContent = "Set API Base URL to a reachable backend endpoint.";
+    apiBaseHint.className = "muted hint-warning";
+    return;
+  }
+  if (!isLocalPageHost() && isLoopbackApiBase(base)) {
+    apiBaseHint.textContent =
+      "You are on a hosted page. 127.0.0.1 points to this device. Use a public API URL or your PC LAN IP (with API listening on 0.0.0.0).";
+    apiBaseHint.className = "muted hint-warning";
+    return;
+  }
+  apiBaseHint.textContent = "API Base URL looks reachable for this environment.";
+  apiBaseHint.className = "muted";
+}
+
+function initApiBaseInput() {
+  const urlBase = new URLSearchParams(window.location.search).get("api_base");
+  const savedBase = localStorage.getItem(apiBaseStorageKey);
+  if (urlBase) {
+    apiBaseInput.value = urlBase;
+    localStorage.setItem(apiBaseStorageKey, urlBase);
+  } else if (savedBase) {
+    apiBaseInput.value = savedBase;
+  } else if (!isLocalPageHost() && isLoopbackApiBase(apiBaseInput.value)) {
+    apiBaseInput.value = "";
+  }
+  updateApiBaseHint();
+}
+
 function setElementLoading(element, isLoading, loadingLabel = "Loading...") {
   if (!element) {
     return;
@@ -335,7 +384,7 @@ async function findSampleDevice(source = "Auto load") {
 }
 
 function getApiBase() {
-  return document.getElementById("apiBase").value.trim().replace(/\/$/, "");
+  return apiBaseInput.value.trim().replace(/\/$/, "");
 }
 
 function getActiveRunId() {
@@ -346,6 +395,12 @@ async function ensureActiveRunLoaded() {
   if (getActiveRunId()) {
     return true;
   }
+  const now = Date.now();
+  if (now - lastRunRefreshAttemptMs < runRefreshCooldownMs) {
+    appendLog("Skipping repeated run refresh attempt (cooldown active).");
+    return false;
+  }
+  lastRunRefreshAttemptMs = now;
   appendLog("Active run_id is empty. Attempting auto-refresh from raw_pings.csv lineage.");
   await refreshActiveRun("Auto ensureActiveRunLoaded");
   if (!getActiveRunId()) {
@@ -756,6 +811,11 @@ liveUpdatesToggle.addEventListener("change", () => {
   setLiveUpdates(liveUpdatesToggle.checked);
 });
 
+apiBaseInput.addEventListener("change", () => {
+  localStorage.setItem(apiBaseStorageKey, getApiBase());
+  updateApiBaseHint();
+});
+
 runFullDemoBtn.addEventListener("click", async () => {
   if (isFullDemoRunning) {
     return;
@@ -793,6 +853,7 @@ runFullDemoBtn.addEventListener("click", async () => {
 });
 
 mermaid.initialize({ startOnLoad: true, theme: "dark" });
+initApiBaseInput();
 initPresets();
 appendLog("API Playground loaded.");
 async function bootstrapPlayground() {
