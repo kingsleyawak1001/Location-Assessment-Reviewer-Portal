@@ -1,23 +1,11 @@
-# Phase 1 + Phase 2 Core ETL
+# Location Data Assessment Solution
 
-This repository contains the first two implementation layers of the location-data ETL assessment:
+This repository contains an end-to-end prototype of the location-data assessment:
 
-- **Phase 1**: ingestion, data quality, idempotent processing, and local orchestration.
-- **Phase 2**: core transformation from accepted pings into visit records (`stay` / `pass_by`) with baseline stay classification.
-
-## Scope (implemented)
-
-- CSV ingestion from an input file.
-- Schema-resilient parsing (`accuracy_m` optional).
-- Timestamp normalization (Unix epoch + ISO-8601 fallback).
-- Data quality checks and split into accepted/rejected records.
-- Visit grouping by device into visit sessions.
-- Visit kind detection (`stay` vs `pass_by`).
-- Basic stay type classification (`home`, `work`, `other`) with rule-based defaults.
-- File manifest tracking with idempotency.
-- Quality report generation.
-
-Out of scope for the current implementation: production database/API implementation.
+- **Phase 1**: ingestion, quality checks, idempotency, artifacts, reporting.
+- **Phase 2**: grouping pings into visits + `stay/pass_by` + baseline stay type classification.
+- **Phase 3**: query-ready SQLite storage for visits with lineage metadata.
+- **Phase 4**: analytics query/export layer with materialized run aggregates.
 
 ## Tech stack
 
@@ -35,7 +23,7 @@ Out of scope for the current implementation: production database/API implementat
 uv sync
 ```
 
-## Run Phase 1
+## Run pipeline
 
 From `Assessment Solution/`:
 
@@ -55,32 +43,62 @@ Compare primary vs alternative algorithm (Phase 1):
 uv run phase1 compare phase1 --input ../raw_pings.csv --runs 2
 ```
 
-Phase 2 grouping thresholds can be overridden via environment variables:
+## Config (env overrides)
+
+All settings use `PHASE1_` prefix:
 
 - `PHASE1_PHASE2_MAX_GAP_SECONDS`
 - `PHASE1_PHASE2_MAX_DISTANCE_M`
 - `PHASE1_PHASE2_STAY_MIN_DURATION_SECONDS`
 - `PHASE1_PHASE2_STAY_MIN_PINGS`
+- `PHASE1_PHASE3_DB_PATH`
+- `PHASE1_PHASE4_TOP_DEVICES_LIMIT`
 
-This generates a comparison report with:
+## Query and export layer
 
-- winner by average runtime
-- quality consistency between variants
-- per-run metrics for both algorithms
-- explicit "where better" section (speed/quality)
+Inspect lineage and visit previews:
 
-Phase 2 algorithm details and defaults:
+```bash
+uv run phase1 query phase3 --db-path artifacts/visits.db --limit 5
+uv run phase1 query phase3 --db-path artifacts/visits.db --run-id <run_id> --limit 10
+```
+
+Query analytics (materialized when available):
+
+```bash
+uv run phase1 query phase4 --db-path artifacts/visits.db --run-id <run_id> --top-devices-limit 5
+```
+
+Export analytics payload:
+
+```bash
+uv run phase1 export phase4 --db-path artifacts/visits.db --run-id <run_id> --output artifacts/reports/<run_id>_phase4_export.json
+```
+
+## API layer (implemented for required use-cases)
+
+Run local API server:
+
+```bash
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000
+```
+
+Endpoints:
+
+- `GET /api/health`
+- `GET /api/map/data`
+- `GET /api/devices/{device_id}/journey`
+
+## Algorithm docs
 
 - `PHASE2_ALGORITHM.md`
 - `PHASE2_ASSUMPTIONS.md`
 
-Inspect persisted Phase 3/4 data:
+## Design docs (assessment deliverables)
 
-```bash
-uv run phase1 query phase3 --db-path artifacts/visits.db --limit 5
-uv run phase1 query phase4 --db-path artifacts/visits.db --run-id <run_id> --top-devices-limit 5
-uv run phase1 export phase4 --db-path artifacts/visits.db --run-id <run_id> --output artifacts/reports/<run_id>_phase4_export.json
-```
+- `DATABASE_DESIGN.md`
+- `API_QUERY_DESIGN.md`
+- `PRODUCTION_ARCHITECTURE.md`
 
 ## Quality / tests
 
@@ -90,34 +108,6 @@ uv run ruff check .
 uv run mypy .
 ```
 
-## Conventional Commits
-
-Repository is configured to enforce Conventional Commits for commit messages.
-
-Install and activate hooks:
-
-```bash
-uv sync --group dev
-uv run pre-commit install --hook-type commit-msg
-```
-
-Validate the latest commit message manually:
-
-```bash
-uv run cz check --rev-range HEAD~1..HEAD
-```
-
-Message format:
-
-```text
-<type>[optional scope]: <description>
-```
-
-Examples:
-
-- `feat(ingestion): add schema-resilient csv parser`
-- `fix(quality): reject invalid latitude and longitude ranges`
-
 ## Outputs
 
 All generated files are in `artifacts/`:
@@ -126,18 +116,39 @@ All generated files are in `artifacts/`:
 - `rejected/<run_id>_rejected.parquet`
 - `visits/<run_id>_visits.parquet`
 - `reports/<run_id>_quality_report.json`
+- `reports/<run_id>_phase4_export.json` (optional export)
 - `manifest.db`
+- `visits.db`
 
 Quality report also includes runtime metrics:
 
 - `total_duration_ms`
-- `step_durations_ms` (per pipeline step timing)
-- `visits_count`
-- `visits_path`
+- `step_durations_ms`
+- `visits_count` and `visits_path`
+- `phase2_summary`
+- `phase3_summary`
+- `phase4_summary`
+- `consistency_checks` (`phase1_ok`..`phase4_ok`)
 
-## Current limitations
+## What is implemented vs design-only
+
+Implemented:
+
+- ETL code prototype with grouping and stay classification.
+- Database persistence with lineage.
+- API/query layer for required use-cases (`/api/map/data`, `/api/devices/{device_id}/journey`).
+- Query/export interface via CLI.
+- Materialized analytics by run.
+
+Design-only (documented, not fully deployed at production scale):
+
+- Production-grade API hardening (auth, advanced rate limiting, multi-tenant controls).
+- Cloud orchestration and managed infra rollout.
+- Distributed columnar deployment at billion-scale.
+
+## Known limitations and trade-offs
 
 - Grouping/classification defaults are heuristic and intentionally simple.
 - Duplicate detection is exact-row based after normalization.
 - Timestamp parser handles common epoch/ISO formats; malformed mixed formats are rejected.
-- No database write or API layer for visit records yet.
+- Prototype uses SQLite for local simplicity; production should use columnar analytics storage.

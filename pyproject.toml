@@ -5,14 +5,17 @@ description = "Phase 1 ingestion and quality pipeline for location pings"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "fastapi>=0.110.2",
   "polars>=1.8.0",
   "pydantic>=2.8.0",
   "pydantic-settings>=2.4.0",
+  "uvicorn>=0.29.0",
 ]
 
 [dependency-groups]
 dev = [
   "commitizen>=3.29.0",
+  "httpx>=0.27.0",
   "mypy>=1.11.0",
   "pre-commit>=3.8.0",
   "pytest>=8.3.0",

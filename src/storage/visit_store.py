@@ -398,3 +398,115 @@ class VisitStore:
             "materialized_at": str(row[8]),
         }
 
+    def get_location_analytics(
+        self,
+        *,
+        start_ts_utc: str,
+        end_ts_utc: str,
+        west: float,
+        east: float,
+        south: float,
+        north: float,
+        movement_type: str | None,
+        min_visits: int,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        where_clauses = [
+            "start_ts_utc >= ?",
+            "end_ts_utc <= ?",
+            "representative_longitude BETWEEN ? AND ?",
+            "representative_latitude BETWEEN ? AND ?",
+        ]
+        params: list[Any] = [start_ts_utc, end_ts_utc, west, east, south, north]
+        if movement_type is not None:
+            where_clauses.append("visit_kind = ?")
+            params.append(movement_type)
+        params.extend([min_visits, limit])
+        query = f"""
+            SELECT
+                printf(
+                    'cell_%d_%d',
+                    CAST(representative_latitude * 100 AS INTEGER),
+                    CAST(representative_longitude * 100 AS INTEGER)
+                ) AS hex_id,
+                COUNT(*) AS total_visits,
+                COUNT(DISTINCT device_id) AS unique_devices,
+                AVG(duration_seconds) AS avg_duration_s,
+                SUM(CASE WHEN visit_kind = 'stay' THEN 1 ELSE 0 END) AS stay_count,
+                SUM(CASE WHEN visit_kind = 'pass_by' THEN 1 ELSE 0 END) AS passby_count,
+                MIN(start_ts_utc) AS earliest_visit,
+                MAX(end_ts_utc) AS latest_visit
+            FROM visits
+            WHERE {' AND '.join(where_clauses)}
+            GROUP BY hex_id
+            HAVING COUNT(*) >= ?
+            ORDER BY total_visits DESC
+            LIMIT ?
+        """
+        with self._connect() as connection:
+            rows = connection.execute(query, tuple(params)).fetchall()
+        return [
+            {
+                "hex_id": str(row[0]),
+                "total_pings": int(row[1]),
+                "unique_devices": int(row[2]),
+                "avg_duration_s": float(row[3]),
+                "stay_count": int(row[4]),
+                "passby_count": int(row[5]),
+                "earliest_visit": str(row[6]),
+                "latest_visit": str(row[7]),
+            }
+            for row in rows
+        ]
+
+    def get_device_journey(
+        self,
+        *,
+        device_id: str,
+        start_ts_utc: str,
+        end_ts_utc: str,
+        include_pass_by: bool,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        params: list[Any] = [device_id, start_ts_utc, end_ts_utc]
+        where_clauses = [
+            "device_id = ?",
+            "start_ts_utc >= ?",
+            "end_ts_utc <= ?",
+        ]
+        if not include_pass_by:
+            where_clauses.append("visit_kind = 'stay'")
+        params.append(limit)
+        query = f"""
+            SELECT
+                visit_id,
+                visit_kind,
+                stay_type,
+                start_ts_utc,
+                end_ts_utc,
+                duration_seconds,
+                ping_count,
+                representative_latitude,
+                representative_longitude
+            FROM visits
+            WHERE {' AND '.join(where_clauses)}
+            ORDER BY start_ts_utc ASC
+            LIMIT ?
+        """
+        with self._connect() as connection:
+            rows = connection.execute(query, tuple(params)).fetchall()
+        return [
+            {
+                "visit_id": str(row[0]),
+                "visit_kind": str(row[1]),
+                "stay_type": str(row[2]) if row[2] is not None else None,
+                "start_ts_utc": str(row[3]),
+                "end_ts_utc": str(row[4]),
+                "duration_seconds": int(row[5]),
+                "ping_count": int(row[6]),
+                "representative_latitude": float(row[7]),
+                "representative_longitude": float(row[8]),
+            }
+            for row in rows
+        ]
+
