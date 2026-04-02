@@ -12,6 +12,7 @@ understand:
 
 - Full solution overview:
   - `docs/solution/01_full_solution_documentation.md`
+  - `docs/solution/02_final_delivery_summary.md`
 
 - Domain documents (mapped to `assessment.md`):
   - Part 1 (ETL Pipeline): `docs/solution/domains/part1_etl_pipeline.md`
@@ -26,9 +27,10 @@ understand:
 
 ## Reading Order
 
-1. Read `01_full_solution_documentation.md` for end-to-end understanding.
-2. Read each Part document for domain-level rationale and implementation details.
-3. Use appendices for concise decision comparisons and reusable diagrams.
+1. Read `02_final_delivery_summary.md` for a concise delivery snapshot.
+2. Read `01_full_solution_documentation.md` for end-to-end understanding.
+3. Read each Part document for domain-level rationale and implementation details.
+4. Use appendices for concise decision comparisons and reusable diagrams.
 
 ## Scope Note
 

@@ -1,11 +1,11 @@
 # Location Data Assessment Solution
 
-This repository contains an end-to-end prototype of the location-data assessment:
+This repository contains an end-to-end prototype for the location-data assessment:
 
-- **Phase 1**: ingestion, quality checks, idempotency, artifacts, reporting.
-- **Phase 2**: grouping pings into visits + `stay/pass_by` + baseline stay type classification.
-- **Phase 3**: query-ready SQLite storage for visits with lineage metadata.
-- **Phase 4**: analytics query/export layer with materialized run aggregates.
+- **Part 1: ETL Pipeline Implementation** - ingestion, data quality checks, idempotency, artifacts, reporting, ping grouping, and stay/pass-by classification.
+- **Part 2: Database Architecture** - query-ready visit storage with lineage metadata and run tracking.
+- **Part 3: API/Query Layer** - map analytics and device journey access patterns (HTTP + CLI query surface).
+- **Part 4: Production System Architecture** - documented scaling strategy, infrastructure direction, and production migration path.
 
 ## Tech stack
 
@@ -93,32 +93,39 @@ Endpoints:
 - `GET /api/health`
 - `GET /api/map/data`
 - `GET /api/devices/{device_id}/journey`
+- `GET /api/devices/suggestions`
+- `GET /api/runs/latest`
+- `GET /api/runs/{run_id}/bounds`
 
-## Algorithm docs
+## Reviewer Portal (Web UI)
 
-- `PHASE2_ALGORITHM.md`
-- `PHASE2_ASSUMPTIONS.md`
+Interactive API Playground is located in:
+
+- `reviewer_site/index.html`
+
+Local run:
+
+```bash
+python -m http.server 8080
+```
+
+Hosted run (GitHub Pages):
+
+- `https://kingsleyawak1001.github.io/Location-Assessment-Reviewer-Portal/`
 
 ## Design docs (assessment deliverables)
 
 - Canonical structured documentation:
   - `docs/solution/README.md`
+  - `docs/solution/02_final_delivery_summary.md`
   - `docs/solution/01_full_solution_documentation.md`
   - `docs/solution/domains/part1_etl_pipeline.md`
   - `docs/solution/domains/part2_database_architecture.md`
   - `docs/solution/domains/part3_api_query_layer.md`
   - `docs/solution/domains/part4_production_architecture.md`
+  - `docs/solution/appendix/api_playground_guide.md`
   - `docs/solution/appendix/technology_decisions.md`
   - `docs/solution/appendix/system_diagrams.md`
-
-Legacy top-level docs (kept for compatibility/history):
-
-- `DATABASE_DESIGN.md`
-- `API_QUERY_DESIGN.md`
-- `PRODUCTION_ARCHITECTURE.md`
-- `ASSESSMENT_ALIGNMENT.md`
-- `TECHNOLOGY_RATIONALE.md`
-- `SYSTEM_FLOW_AND_TZ_ALIGNMENT.md`
 
 ## Quality / tests
 
