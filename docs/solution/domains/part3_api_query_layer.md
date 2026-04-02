@@ -54,6 +54,7 @@ flowchart TD
 - `src/storage/visit_store.py`
 - `tests/test_api_layer.py`
 - `tests/test_phase4_export.py`
+- `docs/solution/appendix/api_playground_guide.md` (review and demo surface details)
 
 ## Production Hardening Path
 

@@ -22,6 +22,7 @@ understand:
 - Cross-domain appendices:
   - Technology decisions: `docs/solution/appendix/technology_decisions.md`
   - System flow and diagrams: `docs/solution/appendix/system_diagrams.md`
+  - API Playground guide: `docs/solution/appendix/api_playground_guide.md`
 
 ## Reading Order
 
