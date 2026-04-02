@@ -35,6 +35,8 @@ Then open:
 ### Controls
 
 - `API Base URL`: base URL for all API requests.
+  - On GitHub Pages, if this is set to localhost, the playground auto-falls back to
+    built-in autonomous demo data.
 - `Preset Profile`: applies predefined map/journey parameters.
 - `Run Full Demo`: executes:
   1) resolve latest `raw_pings.csv` run,
@@ -115,6 +117,19 @@ The playground is run-aware:
 - injects the same `run_id` into map and journey queries.
 
 This ensures both visualizations refer to the same ingestion run.
+
+## Autonomous Hosted Mode
+
+When hosted on GitHub Pages (or any static host without backend reachability),
+the playground can still run end-to-end via built-in demo responses:
+- health checks;
+- run/bounds resolution;
+- suggestions;
+- map analytics;
+- journey analytics.
+
+This mode is activated automatically when hosted remotely and `API Base URL`
+points to localhost.
 
 ## Troubleshooting
 

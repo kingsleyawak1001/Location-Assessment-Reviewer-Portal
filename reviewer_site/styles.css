@@ -343,10 +343,6 @@ select {
   margin-top: 0;
 }
 
-.hint-warning {
-  color: #e5d39a;
-}
-
 .status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

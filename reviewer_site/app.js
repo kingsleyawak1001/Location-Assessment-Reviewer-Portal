@@ -7,9 +7,9 @@ const executionLog = document.getElementById("executionLog");
 const mapForm = document.getElementById("mapForm");
 const journeyForm = document.getElementById("journeyForm");
 const apiBaseInput = document.getElementById("apiBase");
-const apiBaseHint = document.getElementById("apiBaseHint");
 const presetProfile = document.getElementById("presetProfile");
 const presetDescription = document.getElementById("presetDescription");
+const dataSourceStatus = document.getElementById("dataSourceStatus");
 const runFullDemoBtn = document.getElementById("runFullDemoBtn");
 const copyLogBtn = document.getElementById("copyLogBtn");
 const copyRawBtn = document.getElementById("copyRawBtn");
@@ -23,9 +23,7 @@ let activeRunId = "";
 let isFullDemoRunning = false;
 let liveUpdatesEnabled = true;
 let healthCheckTimerId = null;
-let lastRunRefreshAttemptMs = 0;
-const runRefreshCooldownMs = 4000;
-const apiBaseStorageKey = "reviewer_api_base";
+let useDemoMode = false;
 const activityTimeline = document.getElementById("activityTimeline");
 const kpiEls = {
   apiLatency: document.getElementById("kpiApiLatency"),
@@ -111,6 +109,126 @@ const PRESET_PROFILES = [
     journey: { ...JOURNEY_DEFAULTS, include_pass_by: "true", limit: "400" },
   },
 ];
+
+const DEMO_RUN = {
+  run_id: "demo_raw_run_2025_01",
+  source_file: "raw_pings.csv",
+  persisted_at: "2025-01-06T09:30:00Z",
+};
+
+const DEMO_BOUNDS = {
+  start_ts_utc: "2025-01-01T00:00:00Z",
+  end_ts_utc: "2025-01-05T23:59:59Z",
+};
+
+const DEMO_CELLS = [
+  {
+    hex_id: "8a2a1072b59ffff",
+    total_pings: 312,
+    unique_devices: 19,
+    avg_duration_s: 1460.5,
+    stay_count: 41,
+    passby_count: 15,
+    earliest_visit: "2025-01-01T01:10:00Z",
+    latest_visit: "2025-01-05T22:54:00Z",
+  },
+  {
+    hex_id: "8a2a1072b597fff",
+    total_pings: 228,
+    unique_devices: 13,
+    avg_duration_s: 980.2,
+    stay_count: 29,
+    passby_count: 12,
+    earliest_visit: "2025-01-01T03:30:00Z",
+    latest_visit: "2025-01-05T21:30:00Z",
+  },
+  {
+    hex_id: "8a2a1072b527fff",
+    total_pings: 189,
+    unique_devices: 10,
+    avg_duration_s: 712.0,
+    stay_count: 15,
+    passby_count: 17,
+    earliest_visit: "2025-01-01T05:01:00Z",
+    latest_visit: "2025-01-05T20:44:00Z",
+  },
+  {
+    hex_id: "8a2a1072b507fff",
+    total_pings: 143,
+    unique_devices: 8,
+    avg_duration_s: 521.7,
+    stay_count: 11,
+    passby_count: 13,
+    earliest_visit: "2025-01-01T09:00:00Z",
+    latest_visit: "2025-01-05T18:22:00Z",
+  },
+];
+
+const DEMO_DEVICES = [
+  {
+    device_id: "78805d50-5ebb-4772-a634-0301b479f300",
+    visits_count: 9,
+    earliest_visit: "2025-01-01T08:00:00Z",
+    latest_visit: "2025-01-05T20:10:00Z",
+  },
+  {
+    device_id: "4ef16bf5-8fc3-4dc4-9bcc-9f4f43e7fd21",
+    visits_count: 7,
+    earliest_visit: "2025-01-01T10:10:00Z",
+    latest_visit: "2025-01-05T19:02:00Z",
+  },
+  {
+    device_id: "f4b2f408-0c36-4a19-80ce-3812c8fe86dc",
+    visits_count: 6,
+    earliest_visit: "2025-01-01T12:30:00Z",
+    latest_visit: "2025-01-05T21:45:00Z",
+  },
+];
+
+const DEMO_JOURNEYS = {
+  "78805d50-5ebb-4772-a634-0301b479f300": [
+    {
+      visit_id: "demo_v1",
+      visit_kind: "stay",
+      stay_type: "home",
+      start_ts_utc: "2025-01-01T08:00:00Z",
+      end_ts_utc: "2025-01-01T11:10:00Z",
+      duration_seconds: 11400,
+      representative_latitude: 6.5244,
+      representative_longitude: 3.3792,
+    },
+    {
+      visit_id: "demo_v2",
+      visit_kind: "pass_by",
+      stay_type: null,
+      start_ts_utc: "2025-01-01T12:00:00Z",
+      end_ts_utc: "2025-01-01T12:35:00Z",
+      duration_seconds: 2100,
+      representative_latitude: 6.45,
+      representative_longitude: 3.4,
+    },
+    {
+      visit_id: "demo_v3",
+      visit_kind: "stay",
+      stay_type: "work",
+      start_ts_utc: "2025-01-02T09:00:00Z",
+      end_ts_utc: "2025-01-02T17:20:00Z",
+      duration_seconds: 30000,
+      representative_latitude: 6.51,
+      representative_longitude: 3.36,
+    },
+    {
+      visit_id: "demo_v4",
+      visit_kind: "stay",
+      stay_type: "other",
+      start_ts_utc: "2025-01-03T18:30:00Z",
+      end_ts_utc: "2025-01-03T21:00:00Z",
+      duration_seconds: 9000,
+      representative_latitude: 6.48,
+      representative_longitude: 3.41,
+    },
+  ],
+};
 
 function appendLog(message) {
   const now = new Date().toISOString();
@@ -207,50 +325,6 @@ function setFormValues(formElement, values) {
   });
 }
 
-function isLocalPageHost() {
-  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-}
-
-function isLoopbackApiBase(baseUrl) {
-  try {
-    const parsed = new URL(baseUrl);
-    return ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
-  } catch {
-    return false;
-  }
-}
-
-function updateApiBaseHint() {
-  const base = getApiBase();
-  if (!base) {
-    apiBaseHint.textContent = "Set API Base URL to a reachable backend endpoint.";
-    apiBaseHint.className = "muted hint-warning";
-    return;
-  }
-  if (!isLocalPageHost() && isLoopbackApiBase(base)) {
-    apiBaseHint.textContent =
-      "You are on a hosted page. 127.0.0.1 points to this device. Use a public API URL or your PC LAN IP (with API listening on 0.0.0.0).";
-    apiBaseHint.className = "muted hint-warning";
-    return;
-  }
-  apiBaseHint.textContent = "API Base URL looks reachable for this environment.";
-  apiBaseHint.className = "muted";
-}
-
-function initApiBaseInput() {
-  const urlBase = new URLSearchParams(window.location.search).get("api_base");
-  const savedBase = localStorage.getItem(apiBaseStorageKey);
-  if (urlBase) {
-    apiBaseInput.value = urlBase;
-    localStorage.setItem(apiBaseStorageKey, urlBase);
-  } else if (savedBase) {
-    apiBaseInput.value = savedBase;
-  } else if (!isLocalPageHost() && isLoopbackApiBase(apiBaseInput.value)) {
-    apiBaseInput.value = "";
-  }
-  updateApiBaseHint();
-}
-
 function setElementLoading(element, isLoading, loadingLabel = "Loading...") {
   if (!element) {
     return;
@@ -272,6 +346,163 @@ function formatEventDetail(description, requestUrl = "", source = "") {
     parts.push(`Source: ${source}`);
   }
   return parts.join("\n");
+}
+
+function isLocalApiBase(baseUrl) {
+  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(baseUrl);
+}
+
+function shouldPreferDemoMode() {
+  const base = getApiBase();
+  const onGithubPages = window.location.hostname.endsWith("github.io");
+  return base.toLowerCase() === "demo" || (onGithubPages && isLocalApiBase(base));
+}
+
+function updateDataSourceStatus() {
+  if (!dataSourceStatus) {
+    return;
+  }
+  dataSourceStatus.textContent = useDemoMode
+    ? "Data source: Built-in demo dataset (autonomous mode)"
+    : "Data source: Live API";
+}
+
+function buildDemoMapPayload(params) {
+  const movementType = params.get("movement_type");
+  const minVisits = Number(params.get("min_visits") || 1);
+  const limit = Number(params.get("limit") || 100);
+  const responseFormat = params.get("response_format") || "extended";
+
+  let cells = DEMO_CELLS.filter(
+    (cell) =>
+      (movementType === "stay" ? cell.stay_count > 0 : true) &&
+      (movementType === "pass_by" ? cell.passby_count > 0 : true) &&
+      cell.stay_count + cell.passby_count >= minVisits
+  ).slice(0, limit);
+
+  if (responseFormat === "assessment") {
+    const primary = cells[0];
+    return {
+      status: "success",
+      data: primary
+        ? { ...primary }
+        : {
+            hex_id: "",
+            total_pings: 0,
+            unique_devices: 0,
+            avg_duration_s: 0.0,
+            stay_count: 0,
+            passby_count: 0,
+            earliest_visit: "",
+            latest_visit: "",
+          },
+    };
+  }
+
+  return {
+    status: "success",
+    data: {
+      window: {
+        start_date: params.get("start_date") || "2025-01-01",
+        end_date: params.get("end_date") || "2025-01-05",
+      },
+      bbox: {
+        west: Number(params.get("west") || -180),
+        east: Number(params.get("east") || 180),
+        south: Number(params.get("south") || -90),
+        north: Number(params.get("north") || 90),
+      },
+      movement_type: movementType || null,
+      cells,
+    },
+  };
+}
+
+function buildDemoJourneyPayload(deviceId, params) {
+  const includePassBy = params.get("include_pass_by") !== "false";
+  const limit = Number(params.get("limit") || 200);
+  const startTs = params.get("start_ts") || DEMO_BOUNDS.start_ts_utc;
+  const endTs = params.get("end_ts") || DEMO_BOUNDS.end_ts_utc;
+  const baseJourney = DEMO_JOURNEYS[deviceId] || DEMO_JOURNEYS[DEMO_DEVICES[0].device_id];
+  const journey = baseJourney
+    .filter((item) => includePassBy || item.visit_kind === "stay")
+    .slice(0, limit);
+  return {
+    status: "success",
+    data: {
+      device_id: deviceId,
+      window: { start_ts: startTs, end_ts: endTs },
+      journey,
+    },
+  };
+}
+
+function buildDemoResponse(url) {
+  const parsed = new URL(url, window.location.origin);
+  const { pathname, searchParams } = parsed;
+
+  if (pathname === "/api/health") {
+    return { ok: true, status: 200, payload: { status: "ok" } };
+  }
+  if (pathname === "/api/runs/latest") {
+    return { ok: true, status: 200, payload: { status: "success", data: DEMO_RUN } };
+  }
+  if (pathname === `/api/runs/${encodeURIComponent(DEMO_RUN.run_id)}/bounds`) {
+    return { ok: true, status: 200, payload: { status: "success", data: DEMO_BOUNDS } };
+  }
+  if (pathname.startsWith("/api/runs/") && pathname.endsWith("/bounds")) {
+    return { ok: true, status: 200, payload: { status: "success", data: null } };
+  }
+  if (pathname === "/api/devices/suggestions") {
+    const limit = Number(searchParams.get("limit") || 5);
+    const devices = DEMO_DEVICES.slice(0, limit);
+    return {
+      ok: true,
+      status: 200,
+      payload: {
+        status: "success",
+        data: {
+          window: {
+            start_ts: searchParams.get("start_ts") || DEMO_BOUNDS.start_ts_utc,
+            end_ts: searchParams.get("end_ts") || DEMO_BOUNDS.end_ts_utc,
+          },
+          devices,
+        },
+      },
+    };
+  }
+  if (pathname === "/api/map/data") {
+    return { ok: true, status: 200, payload: buildDemoMapPayload(searchParams) };
+  }
+  if (pathname.startsWith("/api/devices/") && pathname.endsWith("/journey")) {
+    const parts = pathname.split("/");
+    const deviceId = decodeURIComponent(parts[3] || DEMO_DEVICES[0].device_id);
+    return {
+      ok: true,
+      status: 200,
+      payload: buildDemoJourneyPayload(deviceId, searchParams),
+    };
+  }
+  return { ok: false, status: 404, payload: { status: "error", message: "Not found" } };
+}
+
+async function requestJson(url) {
+  if (useDemoMode) {
+    return buildDemoResponse(url);
+  }
+  try {
+    const response = await fetch(url);
+    const payload = await response.json();
+    return { ok: response.ok, status: response.status, payload };
+  } catch (error) {
+    if (shouldPreferDemoMode()) {
+      useDemoMode = true;
+      updateDataSourceStatus();
+      appendLog("Switched to autonomous demo mode (live API is not reachable here).");
+      return buildDemoResponse(url);
+    }
+    throw error;
+  }
 }
 
 function applyPreset(profileId) {
@@ -333,7 +564,7 @@ async function findSampleDevice(source = "Auto load") {
     formatEventDetail("Loading sample device suggestions.", url, source)
   );
   try {
-    const response = await fetch(url);
+    const response = await requestJson(url);
     setKpi("apiLatency", `${Math.round(performance.now() - startedAt)} ms`);
     appendLog(`Sample device response status: ${response.status}`);
     setStageState(
@@ -341,7 +572,7 @@ async function findSampleDevice(source = "Auto load") {
       response.ok ? "success" : "error",
       formatEventDetail(`device suggestions -> ${response.status}`, url, source)
     );
-    const payload = await response.json();
+    const payload = response.payload;
     appendRawPayload("Sample device suggestions", payload);
     const devices = payload?.data?.devices ?? [];
     setKpi("suggestionCount", devices.length);
@@ -384,7 +615,7 @@ async function findSampleDevice(source = "Auto load") {
 }
 
 function getApiBase() {
-  return apiBaseInput.value.trim().replace(/\/$/, "");
+  return document.getElementById("apiBase").value.trim().replace(/\/$/, "");
 }
 
 function getActiveRunId() {
@@ -395,12 +626,6 @@ async function ensureActiveRunLoaded() {
   if (getActiveRunId()) {
     return true;
   }
-  const now = Date.now();
-  if (now - lastRunRefreshAttemptMs < runRefreshCooldownMs) {
-    appendLog("Skipping repeated run refresh attempt (cooldown active).");
-    return false;
-  }
-  lastRunRefreshAttemptMs = now;
   appendLog("Active run_id is empty. Attempting auto-refresh from raw_pings.csv lineage.");
   await refreshActiveRun("Auto ensureActiveRunLoaded");
   if (!getActiveRunId()) {
@@ -422,7 +647,7 @@ async function refreshActiveRun(source = "Auto load") {
     formatEventDetail("Resolving latest raw_pings run.", url, source)
   );
   try {
-    const response = await fetch(url);
+    const response = await requestJson(url);
     setKpi("apiLatency", `${Math.round(performance.now() - startedAt)} ms`);
     appendLog(`Latest run response status: ${response.status}`);
     setStageState(
@@ -430,16 +655,16 @@ async function refreshActiveRun(source = "Auto load") {
       response.ok ? "success" : "error",
       formatEventDetail(`runs/latest -> ${response.status}`, url, source)
     );
-    const payload = await response.json();
+    const payload = response.payload;
     const run = payload?.data;
     if (run?.run_id) {
       activeRunId = run.run_id;
       appendLog(`Active run_id set: ${run.run_id}`);
       const boundsUrl = `${getApiBase()}/api/runs/${encodeURIComponent(run.run_id)}/bounds`;
       appendLog(`Loading run bounds: ${boundsUrl}`);
-      const boundsResp = await fetch(boundsUrl);
+      const boundsResp = await requestJson(boundsUrl);
       appendLog(`Run bounds response status: ${boundsResp.status}`);
-      const boundsPayload = await boundsResp.json();
+      const boundsPayload = boundsResp.payload;
       const bounds = boundsPayload?.data;
       if (bounds?.start_ts_utc && bounds?.end_ts_utc) {
         currentRunBounds = bounds;
@@ -614,7 +839,7 @@ async function executeMapQuery(source = "Manual Map Query") {
   appendLog(`Map query started: ${url}`);
   const startedAt = performance.now();
   try {
-    const response = await fetch(url);
+    const response = await requestJson(url);
     setKpi("apiLatency", `${Math.round(performance.now() - startedAt)} ms`);
     appendLog(`Map query response status: ${response.status}`);
     setStageState(
@@ -622,7 +847,7 @@ async function executeMapQuery(source = "Manual Map Query") {
       response.ok ? "success" : "error",
       formatEventDetail(`map/data -> ${response.status}`, url, source)
     );
-    const payload = await response.json();
+    const payload = response.payload;
     apiOutput.textContent = JSON.stringify(payload, null, 2);
     appendRawPayload("Map query", payload);
     const cells = Array.isArray(payload?.data?.cells)
@@ -681,7 +906,7 @@ async function executeJourneyQuery(source = "Manual Journey Query") {
   appendLog(`Journey query started: ${url}`);
   const startedAt = performance.now();
   try {
-    const response = await fetch(url);
+    const response = await requestJson(url);
     setKpi("apiLatency", `${Math.round(performance.now() - startedAt)} ms`);
     appendLog(`Journey query response status: ${response.status}`);
     setStageState(
@@ -689,7 +914,7 @@ async function executeJourneyQuery(source = "Manual Journey Query") {
       response.ok ? "success" : "error",
       formatEventDetail(`journey -> ${response.status}`, url, source)
     );
-    const payload = await response.json();
+    const payload = response.payload;
     apiOutput.textContent = JSON.stringify(payload, null, 2);
     appendRawPayload("Journey query", payload);
     const journey = payload?.data?.journey ?? [];
@@ -773,7 +998,7 @@ async function runHealthCheck() {
   const url = `${getApiBase()}/api/health`;
   const startedAt = performance.now();
   try {
-    const response = await fetch(url);
+    const response = await requestJson(url);
     setStageState(
       "api",
       response.ok ? "success" : "error",
@@ -812,8 +1037,8 @@ liveUpdatesToggle.addEventListener("change", () => {
 });
 
 apiBaseInput.addEventListener("change", () => {
-  localStorage.setItem(apiBaseStorageKey, getApiBase());
-  updateApiBaseHint();
+  useDemoMode = shouldPreferDemoMode();
+  updateDataSourceStatus();
 });
 
 runFullDemoBtn.addEventListener("click", async () => {
@@ -853,7 +1078,8 @@ runFullDemoBtn.addEventListener("click", async () => {
 });
 
 mermaid.initialize({ startOnLoad: true, theme: "dark" });
-initApiBaseInput();
+useDemoMode = shouldPreferDemoMode();
+updateDataSourceStatus();
 initPresets();
 appendLog("API Playground loaded.");
 async function bootstrapPlayground() {
