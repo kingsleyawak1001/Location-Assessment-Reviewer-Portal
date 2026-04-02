@@ -74,6 +74,14 @@ Phase 2 algorithm details and defaults:
 - `PHASE2_ALGORITHM.md`
 - `PHASE2_ASSUMPTIONS.md`
 
+Inspect persisted Phase 3/4 data:
+
+```bash
+uv run phase1 query phase3 --db-path artifacts/visits.db --limit 5
+uv run phase1 query phase4 --db-path artifacts/visits.db --run-id <run_id> --top-devices-limit 5
+uv run phase1 export phase4 --db-path artifacts/visits.db --run-id <run_id> --output artifacts/reports/<run_id>_phase4_export.json
+```
+
 ## Quality / tests
 
 ```bash

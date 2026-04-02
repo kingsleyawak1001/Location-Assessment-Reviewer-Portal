@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -65,6 +66,21 @@ class VisitStore:
                     visits_path TEXT NOT NULL,
                     report_path TEXT,
                     persisted_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS run_aggregates (
+                    run_id TEXT NOT NULL PRIMARY KEY,
+                    total_visits INTEGER NOT NULL,
+                    unique_devices INTEGER NOT NULL,
+                    avg_duration_seconds REAL NOT NULL,
+                    total_pings INTEGER NOT NULL,
+                    counts_by_visit_kind_json TEXT NOT NULL,
+                    counts_by_stay_type_json TEXT NOT NULL,
+                    top_devices_json TEXT NOT NULL,
+                    materialized_at TEXT NOT NULL
                 )
                 """
             )
@@ -162,4 +178,223 @@ class VisitStore:
                 """,
                 (str(report_path), run_id),
             )
+
+    def get_lineage_runs(self, limit: int = 10) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    run_id,
+                    source_file,
+                    algorithm,
+                    total_in,
+                    accepted_count,
+                    rejected_count,
+                    visits_count,
+                    persisted_at,
+                    report_path
+                FROM visit_lineage
+                ORDER BY persisted_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [
+            {
+                "run_id": str(row[0]),
+                "source_file": str(row[1]),
+                "algorithm": str(row[2]),
+                "total_in": int(row[3]),
+                "accepted_count": int(row[4]),
+                "rejected_count": int(row[5]),
+                "visits_count": int(row[6]),
+                "persisted_at": str(row[7]),
+                "report_path": str(row[8]) if row[8] is not None else None,
+            }
+            for row in rows
+        ]
+
+    def get_visits_for_run(self, run_id: str, limit: int = 5) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    visit_id,
+                    device_id,
+                    visit_kind,
+                    stay_type,
+                    start_ts_utc,
+                    end_ts_utc,
+                    duration_seconds,
+                    ping_count,
+                    representative_latitude,
+                    representative_longitude
+                FROM visits
+                WHERE run_id = ?
+                ORDER BY start_ts_utc ASC
+                LIMIT ?
+                """,
+                (run_id, limit),
+            ).fetchall()
+        return [
+            {
+                "visit_id": str(row[0]),
+                "device_id": str(row[1]),
+                "visit_kind": str(row[2]),
+                "stay_type": str(row[3]) if row[3] is not None else None,
+                "start_ts_utc": str(row[4]),
+                "end_ts_utc": str(row[5]),
+                "duration_seconds": int(row[6]),
+                "ping_count": int(row[7]),
+                "representative_latitude": float(row[8]),
+                "representative_longitude": float(row[9]),
+            }
+            for row in rows
+        ]
+
+    def get_run_analytics(self, run_id: str, top_devices_limit: int = 5) -> dict[str, Any]:
+        with self._connect() as connection:
+            totals_row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_visits,
+                    COUNT(DISTINCT device_id) AS unique_devices,
+                    AVG(duration_seconds) AS avg_duration_seconds,
+                    SUM(ping_count) AS total_pings
+                FROM visits
+                WHERE run_id = ?
+                """,
+                (run_id,),
+            ).fetchone()
+            by_kind_rows = connection.execute(
+                """
+                SELECT visit_kind, COUNT(*) AS count
+                FROM visits
+                WHERE run_id = ?
+                GROUP BY visit_kind
+                ORDER BY count DESC
+                """,
+                (run_id,),
+            ).fetchall()
+            by_stay_type_rows = connection.execute(
+                """
+                SELECT COALESCE(stay_type, 'null') AS stay_type, COUNT(*) AS count
+                FROM visits
+                WHERE run_id = ?
+                GROUP BY COALESCE(stay_type, 'null')
+                ORDER BY count DESC
+                """,
+                (run_id,),
+            ).fetchall()
+            top_devices_rows = connection.execute(
+                """
+                SELECT device_id, COUNT(*) AS visits_count
+                FROM visits
+                WHERE run_id = ?
+                GROUP BY device_id
+                ORDER BY visits_count DESC, device_id ASC
+                LIMIT ?
+                """,
+                (run_id, top_devices_limit),
+            ).fetchall()
+
+        total_visits = (
+            int(totals_row[0]) if totals_row is not None and totals_row[0] is not None else 0
+        )
+        unique_devices = (
+            int(totals_row[1]) if totals_row is not None and totals_row[1] is not None else 0
+        )
+        avg_duration_seconds = (
+            float(totals_row[2]) if totals_row is not None and totals_row[2] is not None else 0.0
+        )
+        total_pings = (
+            int(totals_row[3]) if totals_row is not None and totals_row[3] is not None else 0
+        )
+
+        return {
+            "run_id": run_id,
+            "total_visits": total_visits,
+            "unique_devices": unique_devices,
+            "avg_duration_seconds": round(avg_duration_seconds, 3),
+            "total_pings": total_pings,
+            "counts_by_visit_kind": {str(row[0]): int(row[1]) for row in by_kind_rows},
+            "counts_by_stay_type": {
+                str(row[0]): int(row[1]) for row in by_stay_type_rows
+            },
+            "top_devices": [
+                {"device_id": str(row[0]), "visits_count": int(row[1])} for row in top_devices_rows
+            ],
+        }
+
+    def materialize_run_aggregate(self, run_id: str, top_devices_limit: int = 5) -> dict[str, Any]:
+        analytics = self.get_run_analytics(run_id, top_devices_limit=top_devices_limit)
+        materialized_at = datetime.now(UTC).isoformat()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO run_aggregates (
+                    run_id,
+                    total_visits,
+                    unique_devices,
+                    avg_duration_seconds,
+                    total_pings,
+                    counts_by_visit_kind_json,
+                    counts_by_stay_type_json,
+                    top_devices_json,
+                    materialized_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run_id,
+                    int(analytics["total_visits"]),
+                    int(analytics["unique_devices"]),
+                    float(analytics["avg_duration_seconds"]),
+                    int(analytics["total_pings"]),
+                    json.dumps(analytics["counts_by_visit_kind"], sort_keys=True),
+                    json.dumps(analytics["counts_by_stay_type"], sort_keys=True),
+                    json.dumps(analytics["top_devices"]),
+                    materialized_at,
+                ),
+            )
+        return {
+            "run_id": run_id,
+            "materialized_at": materialized_at,
+            "top_devices_limit": top_devices_limit,
+            "total_visits": int(analytics["total_visits"]),
+            "total_pings": int(analytics["total_pings"]),
+        }
+
+    def get_materialized_run_aggregate(self, run_id: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    run_id,
+                    total_visits,
+                    unique_devices,
+                    avg_duration_seconds,
+                    total_pings,
+                    counts_by_visit_kind_json,
+                    counts_by_stay_type_json,
+                    top_devices_json,
+                    materialized_at
+                FROM run_aggregates
+                WHERE run_id = ?
+                """,
+                (run_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "run_id": str(row[0]),
+            "total_visits": int(row[1]),
+            "unique_devices": int(row[2]),
+            "avg_duration_seconds": float(row[3]),
+            "total_pings": int(row[4]),
+            "counts_by_visit_kind": json.loads(str(row[5])),
+            "counts_by_stay_type": json.loads(str(row[6])),
+            "top_devices": json.loads(str(row[7])),
+            "materialized_at": str(row[8]),
+        }
 

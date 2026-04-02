@@ -48,10 +48,12 @@ def test_phase1_run_creates_artifacts_and_manifest(tmp_path: Path) -> None:
     assert "visits_count" in report
     assert "phase2_summary" in report
     assert "phase3_summary" in report
+    assert "phase4_summary" in report
     assert "consistency_checks" in report
     assert report["consistency_checks"]["phase1_ok"] is True
     assert report["consistency_checks"]["phase2_ok"] is True
     assert report["consistency_checks"]["phase3_ok"] is True
+    assert report["consistency_checks"]["phase4_ok"] is True
     by_kind = report["phase2_summary"]["counts_by_visit_kind"]
     assert sum(by_kind.values()) == report["visits_count"]
     assert report["phase3_summary"]["visits_written"] == report["visits_count"]
@@ -69,6 +71,12 @@ def test_phase1_run_creates_artifacts_and_manifest(tmp_path: Path) -> None:
         ).fetchone()
         assert lineage is not None
         assert lineage[0] == str(result.report_path)
+        aggregates = connection.execute(
+            "SELECT total_visits FROM run_aggregates WHERE run_id = ?",
+            (result.run_id,),
+        ).fetchone()
+        assert aggregates is not None
+        assert aggregates[0] == result.visits_count
     manifest = ManifestStore(settings.manifest_path).load()
     assert manifest.height == 1
     assert manifest["status"][0] == "success"

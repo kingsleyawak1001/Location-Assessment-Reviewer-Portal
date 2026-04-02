@@ -121,6 +121,14 @@ def run_phase1(
         )
         step_durations_ms["persist_phase3"] = step_elapsed_ms(phase3_step_start_ns)
 
+        current_step = "materialize_phase4"
+        phase4_step_start_ns = perf_counter_ns()
+        phase4_summary = visit_store.materialize_run_aggregate(
+            run_id,
+            top_devices_limit=settings.phase4_top_devices_limit,
+        )
+        step_durations_ms["materialize_phase4"] = step_elapsed_ms(phase4_step_start_ns)
+
         current_step = "quality_aggregation"
         aggregation_step_start_ns = perf_counter_ns()
         counts_by_reason = quality_counts_by_reason(rejected)
@@ -134,10 +142,12 @@ def run_phase1(
         phase3_ok = bool(phase3_summary["lineage_written"]) and int(
             phase3_summary["visits_written"]
         ) == visits.height
+        phase4_ok = int(phase4_summary["total_visits"]) == visits.height
         consistency_checks = {
             "phase1_ok": phase1_ok,
             "phase2_ok": phase2_ok,
             "phase3_ok": phase3_ok,
+            "phase4_ok": phase4_ok,
         }
         report_payload = {
             "run_id": run_id,
@@ -155,6 +165,7 @@ def run_phase1(
             "visits_count": visits.height,
             "phase2_summary": phase2_summary,
             "phase3_summary": phase3_summary,
+            "phase4_summary": phase4_summary,
             "consistency_checks": consistency_checks,
             "total_duration_ms": total_duration_ms,
             "step_durations_ms": step_durations_ms,
@@ -197,6 +208,7 @@ def run_phase1(
                     "visits": visits.height,
                     "phase2_summary": phase2_summary,
                     "phase3_summary": phase3_summary,
+                    "phase4_summary": phase4_summary,
                     "consistency_checks": consistency_checks,
                     "algorithm": ingestion_algorithm,
                     "total_duration_ms": total_duration_ms,
@@ -221,6 +233,7 @@ def run_phase1(
             visits_path=visits_path,
             phase2_summary=phase2_summary,
             phase3_summary=phase3_summary,
+            phase4_summary=phase4_summary,
             consistency_checks=consistency_checks,
         )
     except Exception as exc:

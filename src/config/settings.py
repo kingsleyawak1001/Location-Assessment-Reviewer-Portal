@@ -21,4 +21,5 @@ class AppSettings(BaseSettings):
     phase2_max_distance_m: float = Field(default=250.0)
     phase2_stay_min_duration_seconds: int = Field(default=600)
     phase2_stay_min_pings: int = Field(default=3)
+    phase4_top_devices_limit: int = Field(default=5)
 

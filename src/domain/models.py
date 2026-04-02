@@ -66,5 +66,6 @@ class QualityResult(BaseModel):
     visits_path: Path | None = None
     phase2_summary: dict[str, dict[str, int]] | None = None
     phase3_summary: dict[str, Any] | None = None
+    phase4_summary: dict[str, Any] | None = None
     consistency_checks: dict[str, bool] | None = None
 
