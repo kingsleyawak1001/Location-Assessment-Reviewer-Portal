@@ -1,0 +1,49 @@
+[project]
+name = "mozverse-phase1-etl"
+version = "0.1.0"
+description = "Phase 1 ingestion and quality pipeline for location pings"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "polars>=1.8.0",
+  "pydantic>=2.8.0",
+  "pydantic-settings>=2.4.0",
+]
+
+[dependency-groups]
+dev = [
+  "commitizen>=3.29.0",
+  "mypy>=1.11.0",
+  "pre-commit>=3.8.0",
+  "pytest>=8.3.0",
+  "ruff>=0.6.0",
+]
+
+[project.scripts]
+phase1 = "src.pipeline.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_return_any = true
+show_error_codes = true
+packages = ["src"]
+exclude = ["tests"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "semver2"
+version_provider = "pep621"
+update_changelog_on_bump = false
