@@ -1,3 +1,9 @@
+"""Phase 1 orchestration for the assessment prototype.
+
+This module is the executable backbone of the prototype implementation requested in
+`assessment.md` Part 1 (ETL Pipeline Implementation) and also feeds Parts 2-4 by
+persisting query-ready visit outputs, lineage, and aggregate-ready artifacts.
+"""
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -23,6 +29,22 @@ def run_phase1(
     settings: AppSettings,
     ingestion_algorithm: Literal["primary", "alternative"] = "primary",
 ) -> QualityResult | None:
+    """Run one end-to-end ETL execution for a single source CSV.
+
+    Functional coverage in the prototype:
+    - Ingestion and normalization of raw pings.
+    - Quality validation and rejection accounting.
+    - Visit grouping and stay/pass_by classification (Phase 2).
+    - Persistence of accepted/rejected/visits artifacts.
+    - Persistence of visits + lineage metadata in SQLite (Part 2 support).
+    - Materialization of run-level aggregates for query workloads.
+    - Deterministic quality report with consistency checks.
+    - Idempotency guard via manifest by `(source_file, checksum)`.
+
+    Returns:
+    - `None` when the same input checksum was already processed successfully.
+    - `QualityResult` when a new run is completed successfully.
+    """
     run_start_ns = perf_counter_ns()
     step_durations_ms: dict[str, float] = {}
 

@@ -69,6 +69,18 @@ def group_pings_into_visits(
     night_end_hour: int = 6,
     night_max_distance_m: float = 120.0,
 ) -> pl.DataFrame:
+    """Collapse accepted pings into deterministic visit records.
+
+    Core rules implemented for prototype behavior:
+    - Segment per `device_id` in timestamp order.
+    - Start a new visit on first row, large time gap, or large spatial jump.
+    - Spatial jump threshold is accuracy-aware:
+      `max_distance_m + max(prev_accuracy_m, curr_accuracy_m)`.
+    - `accuracy_m=0` is treated as perfect accuracy (adds no tolerance).
+    - Optional night-gap bridge can keep continuity for overnight residential-like
+      movement when time gap is bigger than default but still bounded.
+    - Classify visits as `stay`/`pass_by`, then classify stay type.
+    """
     if accepted_df.height == 0:
         return pl.DataFrame(
             schema={

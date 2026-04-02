@@ -24,6 +24,7 @@ dev = [
 
 [project.scripts]
 phase1 = "src.pipeline.cli:main"
+phase1-validate = "src.utils.validation_runner:main"
 
 [tool.ruff]
 line-length = 100

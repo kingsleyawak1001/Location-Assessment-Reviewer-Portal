@@ -11,6 +11,7 @@ from src.config.settings import AppSettings
 from src.pipeline.phase1 import run_phase1
 from src.storage.artifact_store import ArtifactStore
 from src.storage.manifest_store import ManifestStore
+from src.storage.visit_store import VisitStore
 from src.utils.logging import get_logger
 
 
@@ -25,6 +26,8 @@ def run_phase1_batch(
     files = sorted(path for path in input_dir_resolved.glob(pattern) if path.is_file())
     # Initialize manifest schema once before worker fan-out to avoid DDL lock contention.
     ManifestStore(settings.manifest_path)
+    # Initialize visit storage schema once before worker fan-out for the same reason.
+    VisitStore(settings.phase3_db_path)
     batch_run_id = f"batch_{uuid4().hex}"
     batch_start_ns = perf_counter_ns()
     file_results: list[dict[str, Any]] = []

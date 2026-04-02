@@ -1,3 +1,14 @@
+"""SQLite visit storage for the assessment prototype.
+
+This module implements the concrete database layer used by the prototype and provides:
+- visit-level persistence (`visits` table),
+- run-level lineage/audit metadata (`visit_lineage` table),
+- materialized per-run analytics (`run_aggregates` table),
+- query helpers used by CLI and API use-cases.
+
+It is the implemented counterpart of `assessment.md` Part 2 (Design & Schema),
+while remaining intentionally local/prototype-friendly (SQLite + bounded queries).
+"""
 from __future__ import annotations
 
 import json
@@ -411,6 +422,13 @@ class VisitStore:
         min_visits: int,
         limit: int,
     ) -> list[dict[str, Any]]:
+        """Return bounded geographic aggregates for heatmap-like analytics.
+
+        Note:
+        - For prototype simplicity this uses coarse pseudo-cells computed from
+          representative coordinates. Production design can swap this for H3 cells
+          without changing the external API contract.
+        """
         where_clauses = [
             "start_ts_utc >= ?",
             "end_ts_utc <= ?",
@@ -468,6 +486,7 @@ class VisitStore:
         include_pass_by: bool,
         limit: int,
     ) -> list[dict[str, Any]]:
+        """Return a time-ordered visit sequence for one device in a bounded window."""
         params: list[Any] = [device_id, start_ts_utc, end_ts_utc]
         where_clauses = [
             "device_id = ?",

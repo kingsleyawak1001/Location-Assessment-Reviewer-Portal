@@ -51,6 +51,11 @@ All settings use `PHASE1_` prefix:
 - `PHASE1_PHASE2_MAX_DISTANCE_M`
 - `PHASE1_PHASE2_STAY_MIN_DURATION_SECONDS`
 - `PHASE1_PHASE2_STAY_MIN_PINGS`
+- `PHASE1_PHASE2_UNKNOWN_ACCURACY_M`
+- `PHASE1_PHASE2_NIGHT_GAP_SECONDS`
+- `PHASE1_PHASE2_NIGHT_START_HOUR`
+- `PHASE1_PHASE2_NIGHT_END_HOUR`
+- `PHASE1_PHASE2_NIGHT_MAX_DISTANCE_M`
 - `PHASE1_PHASE3_DB_PATH`
 - `PHASE1_PHASE4_TOP_DEVICES_LIMIT`
 
@@ -96,9 +101,24 @@ Endpoints:
 
 ## Design docs (assessment deliverables)
 
+- Canonical structured documentation:
+  - `docs/solution/README.md`
+  - `docs/solution/01_full_solution_documentation.md`
+  - `docs/solution/domains/part1_etl_pipeline.md`
+  - `docs/solution/domains/part2_database_architecture.md`
+  - `docs/solution/domains/part3_api_query_layer.md`
+  - `docs/solution/domains/part4_production_architecture.md`
+  - `docs/solution/appendix/technology_decisions.md`
+  - `docs/solution/appendix/system_diagrams.md`
+
+Legacy top-level docs (kept for compatibility/history):
+
 - `DATABASE_DESIGN.md`
 - `API_QUERY_DESIGN.md`
 - `PRODUCTION_ARCHITECTURE.md`
+- `ASSESSMENT_ALIGNMENT.md`
+- `TECHNOLOGY_RATIONALE.md`
+- `SYSTEM_FLOW_AND_TZ_ALIGNMENT.md`
 
 ## Quality / tests
 
@@ -107,6 +127,21 @@ uv run pytest
 uv run ruff check .
 uv run mypy .
 ```
+
+Project validation policy (always use primary + additional generated datasets):
+
+```bash
+python -m src.utils.validation_runner \
+  --raw-input ../raw_pings.csv \
+  --additional-dir ../generated_pings
+```
+
+This runner always executes:
+
+- mandatory static checks (`ruff`, `mypy`)
+- mandatory tests for Phase 1 and Phase 2
+- e2e on primary dataset (`raw_pings.csv`)
+- e2e on all generated additional datasets in `--additional-dir`
 
 ## Outputs
 

@@ -1,3 +1,9 @@
+"""Minimal API implementation for the assessment's required query use-cases.
+
+Implemented endpoints map to Part 3 requirements:
+- Location analytics / heatmap data: `GET /api/map/data`
+- Device journey / visit details: `GET /api/devices/{device_id}/journey`
+"""
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -18,6 +24,7 @@ def _window_to_utc_bounds(start_date: str, end_date: str) -> tuple[str, str]:
 
 
 def create_app(settings: AppSettings | None = None) -> FastAPI:
+    """Create a FastAPI app bound to the configured visit store."""
     app_settings = settings if settings is not None else AppSettings()
     app = FastAPI(title="Location Analytics API", version="1.0.0")
     store = VisitStore(app_settings.phase3_db_path)
