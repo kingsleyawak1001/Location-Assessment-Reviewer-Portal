@@ -37,6 +37,25 @@ From `Assessment Solution/`:
 uv run phase1 run phase1 --input ../raw_pings.csv
 ```
 
+Process multiple files concurrently:
+
+```bash
+uv run phase1 run phase1 --input-dir ../assessment --glob "*.csv" --max-workers 4
+```
+
+Compare primary vs alternative algorithm (Phase 1):
+
+```bash
+uv run phase1 compare phase1 --input ../raw_pings.csv --runs 2
+```
+
+This generates a comparison report with:
+
+- winner by average runtime
+- quality consistency between variants
+- per-run metrics for both algorithms
+- explicit "where better" section (speed/quality)
+
 ## Quality / tests
 
 ```bash
@@ -80,7 +99,12 @@ All generated files are in `artifacts/`:
 - `accepted/<run_id>_accepted.parquet`
 - `rejected/<run_id>_rejected.parquet`
 - `reports/<run_id>_quality_report.json`
-- `manifest.parquet`
+- `manifest.db`
+
+Quality report also includes runtime metrics:
+
+- `total_duration_ms`
+- `step_durations_ms` (per pipeline step timing)
 
 ## Current limitations
 

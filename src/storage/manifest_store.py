@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import polars as pl
@@ -22,27 +23,99 @@ class ManifestStore:
     def __init__(self, manifest_path: Path) -> None:
         self.manifest_path = manifest_path
         self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.manifest_path.exists():
+            self._initialize()
+
+    def _connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self.manifest_path, timeout=30.0)
+        connection.execute("PRAGMA journal_mode=WAL;")
+        connection.execute("PRAGMA synchronous=NORMAL;")
+        return connection
+
+    def _initialize(self) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS manifest (
+                    file_path TEXT NOT NULL,
+                    checksum TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    processed_at TEXT NOT NULL,
+                    row_count_in INTEGER NOT NULL,
+                    row_count_out INTEGER NOT NULL,
+                    error TEXT,
+                    run_id TEXT NOT NULL PRIMARY KEY
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_manifest_file_checksum_status
+                ON manifest (file_path, checksum, status)
+                """
+            )
 
     def load(self) -> pl.DataFrame:
-        if not self.manifest_path.exists():
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    file_path, checksum, status, processed_at,
+                    row_count_in, row_count_out, error, run_id
+                FROM manifest
+                ORDER BY processed_at ASC
+                """
+            ).fetchall()
+        if not rows:
             return pl.DataFrame(schema=MANIFEST_SCHEMA)
-        return pl.read_parquet(self.manifest_path)
+        return pl.DataFrame(
+            rows,
+            schema=[
+                "file_path",
+                "checksum",
+                "status",
+                "processed_at",
+                "row_count_in",
+                "row_count_out",
+                "error",
+                "run_id",
+            ],
+            orient="row",
+        )
 
     def has_success(self, file_path: Path, checksum: str) -> bool:
-        df = self.load()
-        if df.height == 0:
-            return False
-        matched = df.filter(
-            (pl.col("file_path") == str(file_path))
-            & (pl.col("checksum") == checksum)
-            & (pl.col("status") == "success")
-        )
-        return matched.height > 0
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT 1
+                FROM manifest
+                WHERE file_path = ? AND checksum = ? AND status = 'success'
+                LIMIT 1
+                """,
+                (str(file_path), checksum),
+            ).fetchone()
+        return row is not None
 
     def append_record_atomic(self, record: ManifestRecord) -> None:
-        current = self.load()
-        updated = pl.concat([current, pl.DataFrame([record.to_row()])], how="vertical_relaxed")
-        temp_path = self.manifest_path.with_suffix(".tmp.parquet")
-        updated.write_parquet(temp_path)
-        temp_path.replace(self.manifest_path)
+        row = record.to_row()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO manifest (
+                    file_path, checksum, status, processed_at,
+                    row_count_in, row_count_out, error, run_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    row["file_path"],
+                    row["checksum"],
+                    row["status"],
+                    row["processed_at"],
+                    row["row_count_in"],
+                    row["row_count_out"],
+                    row["error"],
+                    row["run_id"],
+                ),
+            )
 

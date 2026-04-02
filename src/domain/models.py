@@ -48,4 +48,7 @@ class QualityResult(BaseModel):
     rejected_path: Path
     report_path: Path
     run_id: str
+    algorithm: str
+    total_duration_ms: float
+    step_durations_ms: dict[str, float]
 
