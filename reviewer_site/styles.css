@@ -1,0 +1,179 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #e8eaf0;
+  background: #0f1320;
+}
+
+.topbar {
+  padding: 20px 24px;
+  border-bottom: 1px solid #28324a;
+  background: #151b2d;
+}
+
+.topbar h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.topbar p {
+  margin: 0;
+  color: #aab3c7;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 88px);
+}
+
+.sidebar {
+  border-right: 1px solid #28324a;
+  padding: 16px;
+  background: #111728;
+}
+
+.sidebar h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.nav-btn {
+  width: 100%;
+  margin: 6px 0;
+  border: 1px solid #31405d;
+  background: #1a243b;
+  color: #e8eaf0;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nav-btn.active {
+  background: #304f9f;
+  border-color: #4a6ecf;
+}
+
+.content {
+  padding: 20px;
+}
+
+.panel {
+  display: none;
+}
+
+.panel.active {
+  display: block;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: #151d31;
+  border: 1px solid #2d3b59;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.doc-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 12px;
+}
+
+.doc-list {
+  border: 1px solid #2d3b59;
+  background: #151d31;
+  border-radius: 10px;
+  padding: 10px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.doc-item {
+  border: 1px solid #31405d;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.doc-item:hover {
+  background: #1f2b47;
+}
+
+.doc-viewer {
+  border: 1px solid #2d3b59;
+  background: #151d31;
+  border-radius: 10px;
+  padding: 14px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 8px;
+}
+
+label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+input {
+  border: 1px solid #3b4b70;
+  border-radius: 8px;
+  background: #0f1628;
+  color: #e8eaf0;
+  padding: 8px;
+}
+
+button[type="submit"] {
+  margin-top: 10px;
+  border: 1px solid #4a6ecf;
+  background: #3152a8;
+  color: #fff;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+pre {
+  white-space: pre-wrap;
+}
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-layout,
+  .split {
+    grid-template-columns: 1fr;
+  }
+}

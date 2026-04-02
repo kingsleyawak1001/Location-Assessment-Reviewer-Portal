@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.config.settings import AppSettings
 from src.storage.visit_store import VisitStore
@@ -27,6 +28,12 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     """Create a FastAPI app bound to the configured visit store."""
     app_settings = settings if settings is not None else AppSettings()
     app = FastAPI(title="Location Analytics API", version="1.0.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     store = VisitStore(app_settings.phase3_db_path)
 
     @app.get("/api/health")

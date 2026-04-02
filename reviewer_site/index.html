@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Location Assessment Reviewer Portal</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Location Assessment Reviewer Portal</h1>
+      <p>Interactive documentation, stage-by-stage flow, and API playground.</p>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <h2>Navigation</h2>
+        <button class="nav-btn active" data-target="overview">Overview</button>
+        <button class="nav-btn" data-target="docs">Documentation Browser</button>
+        <button class="nav-btn" data-target="stages">Pipeline Stages</button>
+        <button class="nav-btn" data-target="playground">API Playground</button>
+      </aside>
+
+      <section class="content">
+        <div id="overview" class="panel active">
+          <h2>Project Overview</h2>
+          <div class="card-grid">
+            <article class="card">
+              <h3>Part 1: ETL Pipeline</h3>
+              <p>Ingestion, quality filtering, visit grouping, stay classification.</p>
+            </article>
+            <article class="card">
+              <h3>Part 2: Database Architecture</h3>
+              <p>Visit fact storage, lineage model, run aggregates and query-ready shape.</p>
+            </article>
+            <article class="card">
+              <h3>Part 3: API/Query Layer</h3>
+              <p>Interactive access for map analytics and device journey use-cases.</p>
+            </article>
+            <article class="card">
+              <h3>Part 4: Production Architecture</h3>
+              <p>Scale path from local prototype to 1B+/10B+ event processing.</p>
+            </article>
+          </div>
+          <h3>End-to-End Flow</h3>
+          <pre class="mermaid">
+flowchart TB
+    A[Input CSV files] --> B[CLI run/batch/compare]
+    B --> C[Ingestion + Quality]
+    C --> D[Visit Transformation]
+    D --> E[Artifacts + SQLite Persist]
+    E --> F[API and CLI Query Layer]
+    F --> G[Interactive Consumers]
+          </pre>
+        </div>
+
+        <div id="docs" class="panel">
+          <h2>Documentation Browser</h2>
+          <div class="doc-layout">
+            <div class="doc-list" id="docList"></div>
+            <article class="doc-viewer" id="docViewer">
+              <p>Select a document to render it here.</p>
+            </article>
+          </div>
+        </div>
+
+        <div id="stages" class="panel">
+          <h2>Pipeline Stages (Clear Stage-by-Stage View)</h2>
+          <div class="card-grid">
+            <article class="card">
+              <h3>Stage 1: Ingestion and Quality</h3>
+              <ul>
+                <li>Normalize timestamp/schema.</li>
+                <li>Validate coordinates and duplicates.</li>
+                <li>Split accepted/rejected with reason tracking.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Stage 2: Transformation</h3>
+              <ul>
+                <li>Segment by device, time, and distance.</li>
+                <li>Apply accuracy-aware and night-gap rules.</li>
+                <li>Classify stay/pass_by and stay_type.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Stage 3: Persistence and Lineage</h3>
+              <ul>
+                <li>Persist visits into query-ready store.</li>
+                <li>Attach run lineage and artifact references.</li>
+                <li>Materialize run-level aggregates.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Stage 4: Serving and Validation</h3>
+              <ul>
+                <li>Expose map and journey APIs.</li>
+                <li>Support CLI query/export commands.</li>
+                <li>Run lint/type/tests/e2e validation policy.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+
+        <div id="playground" class="panel">
+          <h2>API Playground</h2>
+          <p>Use this to dynamically test API behavior and inspect charts.</p>
+
+          <div class="playground-controls">
+            <label>
+              API Base URL
+              <input id="apiBase" type="text" value="http://127.0.0.1:8000" />
+            </label>
+          </div>
+
+          <div class="split">
+            <form id="mapForm" class="card">
+              <h3>Map Analytics: <code>/api/map/data</code></h3>
+              <div class="form-grid">
+                <label>start_date<input name="start_date" value="2025-01-01" /></label>
+                <label>end_date<input name="end_date" value="2025-01-05" /></label>
+                <label>west<input name="west" type="number" value="-180" step="0.1" /></label>
+                <label>east<input name="east" type="number" value="180" step="0.1" /></label>
+                <label>south<input name="south" type="number" value="-90" step="0.1" /></label>
+                <label>north<input name="north" type="number" value="90" step="0.1" /></label>
+                <label>movement_type<input name="movement_type" value="stay" /></label>
+                <label>min_visits<input name="min_visits" type="number" value="1" /></label>
+                <label>limit<input name="limit" type="number" value="20" /></label>
+              </div>
+              <button type="submit">Run Map Query</button>
+            </form>
+
+            <form id="journeyForm" class="card">
+              <h3>Device Journey: <code>/api/devices/{device_id}/journey</code></h3>
+              <div class="form-grid">
+                <label>device_id<input name="device_id" placeholder="paste device id" /></label>
+                <label>start_ts<input name="start_ts" value="2025-01-01T00:00:00Z" /></label>
+                <label>end_ts<input name="end_ts" value="2025-01-05T23:59:59Z" /></label>
+                <label>include_pass_by<input name="include_pass_by" value="true" /></label>
+                <label>limit<input name="limit" type="number" value="200" /></label>
+              </div>
+              <button type="submit">Run Journey Query</button>
+            </form>
+          </div>
+
+          <div class="charts">
+            <article class="card">
+              <h3>Map Cells: Total Pings</h3>
+              <canvas id="mapBarChart"></canvas>
+            </article>
+            <article class="card">
+              <h3>Journey: Duration by Visit</h3>
+              <canvas id="journeyDurationChart"></canvas>
+            </article>
+            <article class="card">
+              <h3>Journey: Visit Kind Distribution</h3>
+              <canvas id="journeyKindChart"></canvas>
+            </article>
+          </div>
+
+          <article class="card">
+            <h3>Raw API Response</h3>
+            <pre id="apiOutput">{}</pre>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
