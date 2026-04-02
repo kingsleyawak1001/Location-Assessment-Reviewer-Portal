@@ -22,6 +22,7 @@ def _isolated_settings(base: AppSettings, suffix: str) -> AppSettings:
         rejected_dir=artifacts_dir / "rejected",
         visits_dir=artifacts_dir / "visits",
         reports_dir=artifacts_dir / "reports",
+        phase3_db_path=artifacts_dir / "visits.db",
         log_level=base.log_level,
         phase2_max_gap_seconds=base.phase2_max_gap_seconds,
         phase2_max_distance_m=base.phase2_max_distance_m,

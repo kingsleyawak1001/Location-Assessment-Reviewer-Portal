@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sqlite3
 from pathlib import Path
 
 import polars as pl
@@ -19,6 +20,7 @@ def make_settings(tmp_path: Path) -> AppSettings:
         rejected_dir=tmp_path / "artifacts/rejected",
         visits_dir=tmp_path / "artifacts/visits",
         reports_dir=tmp_path / "artifacts/reports",
+        phase3_db_path=tmp_path / "artifacts/visits.db",
         log_level="INFO",
     )
 
@@ -45,8 +47,28 @@ def test_phase1_run_creates_artifacts_and_manifest(tmp_path: Path) -> None:
     assert "visits_path" in report
     assert "visits_count" in report
     assert "phase2_summary" in report
+    assert "phase3_summary" in report
+    assert "consistency_checks" in report
+    assert report["consistency_checks"]["phase1_ok"] is True
+    assert report["consistency_checks"]["phase2_ok"] is True
+    assert report["consistency_checks"]["phase3_ok"] is True
     by_kind = report["phase2_summary"]["counts_by_visit_kind"]
     assert sum(by_kind.values()) == report["visits_count"]
+    assert report["phase3_summary"]["visits_written"] == report["visits_count"]
+
+    with sqlite3.connect(settings.phase3_db_path) as connection:
+        visits_count = connection.execute(
+            "SELECT COUNT(*) FROM visits WHERE run_id = ?",
+            (result.run_id,),
+        ).fetchone()
+        assert visits_count is not None
+        assert visits_count[0] == result.visits_count
+        lineage = connection.execute(
+            "SELECT report_path FROM visit_lineage WHERE run_id = ?",
+            (result.run_id,),
+        ).fetchone()
+        assert lineage is not None
+        assert lineage[0] == str(result.report_path)
     manifest = ManifestStore(settings.manifest_path).load()
     assert manifest.height == 1
     assert manifest["status"][0] == "success"

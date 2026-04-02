@@ -12,6 +12,7 @@ from src.ingestion.csv_reader import read_raw_csv
 from src.quality.validator import quality_counts_by_reason, validate_quality
 from src.storage.artifact_store import ArtifactStore
 from src.storage.manifest_store import ManifestStore
+from src.storage.visit_store import VisitStore
 from src.transformation.grouping import group_pings_into_visits, summarize_visits
 from src.utils.checksum import file_sha256
 from src.utils.logging import get_logger
@@ -102,6 +103,24 @@ def run_phase1(
         visits_path = artifacts.write_visits(run_id, visits)
         step_durations_ms["persist_outputs"] = step_elapsed_ms(persist_step_start_ns)
 
+        current_step = "persist_phase3"
+        phase3_step_start_ns = perf_counter_ns()
+        visit_store = VisitStore(settings.phase3_db_path)
+        phase3_summary = visit_store.persist_visits_with_lineage(
+            run_id=run_id,
+            source_file=str(input_resolved),
+            source_checksum=checksum,
+            algorithm=ingestion_algorithm,
+            total_in=ingested_df.height,
+            accepted_count=accepted.height,
+            rejected_count=rejected.height,
+            accepted_path=accepted_path,
+            rejected_path=rejected_path,
+            visits_path=visits_path,
+            visits_df=visits,
+        )
+        step_durations_ms["persist_phase3"] = step_elapsed_ms(phase3_step_start_ns)
+
         current_step = "quality_aggregation"
         aggregation_step_start_ns = perf_counter_ns()
         counts_by_reason = quality_counts_by_reason(rejected)
@@ -110,6 +129,16 @@ def run_phase1(
         step_durations_ms["quality_aggregation"] = step_elapsed_ms(aggregation_step_start_ns)
 
         total_duration_ms = round((perf_counter_ns() - run_start_ns) / 1_000_000, 3)
+        phase1_ok = total_in == accepted.height + rejected.height
+        phase2_ok = sum(phase2_summary["counts_by_visit_kind"].values()) == visits.height
+        phase3_ok = bool(phase3_summary["lineage_written"]) and int(
+            phase3_summary["visits_written"]
+        ) == visits.height
+        consistency_checks = {
+            "phase1_ok": phase1_ok,
+            "phase2_ok": phase2_ok,
+            "phase3_ok": phase3_ok,
+        }
         report_payload = {
             "run_id": run_id,
             "input_file": str(input_resolved),
@@ -125,6 +154,8 @@ def run_phase1(
             "visits_path": str(visits_path),
             "visits_count": visits.height,
             "phase2_summary": phase2_summary,
+            "phase3_summary": phase3_summary,
+            "consistency_checks": consistency_checks,
             "total_duration_ms": total_duration_ms,
             "step_durations_ms": step_durations_ms,
         }
@@ -153,6 +184,7 @@ def run_phase1(
         report_payload["step_durations_ms"] = step_durations_ms
         # Persist final timings including write_report itself.
         report_path = artifacts.write_quality_report(run_id, report_payload)
+        visit_store.attach_report_path(run_id, report_path)
         logger.info(
             "phase1 run completed",
             extra={
@@ -164,6 +196,8 @@ def run_phase1(
                     "rejected": rejected.height,
                     "visits": visits.height,
                     "phase2_summary": phase2_summary,
+                    "phase3_summary": phase3_summary,
+                    "consistency_checks": consistency_checks,
                     "algorithm": ingestion_algorithm,
                     "total_duration_ms": total_duration_ms,
                     "step_durations_ms": step_durations_ms,
@@ -186,6 +220,8 @@ def run_phase1(
             visits_count=visits.height,
             visits_path=visits_path,
             phase2_summary=phase2_summary,
+            phase3_summary=phase3_summary,
+            consistency_checks=consistency_checks,
         )
     except Exception as exc:
         total_duration_ms = round((perf_counter_ns() - run_start_ns) / 1_000_000, 3)

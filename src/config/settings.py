@@ -15,6 +15,7 @@ class AppSettings(BaseSettings):
     rejected_dir: Path = Field(default=Path("artifacts/rejected"))
     visits_dir: Path = Field(default=Path("artifacts/visits"))
     reports_dir: Path = Field(default=Path("artifacts/reports"))
+    phase3_db_path: Path = Field(default=Path("artifacts/visits.db"))
     log_level: str = Field(default="INFO")
     phase2_max_gap_seconds: int = Field(default=900)
     phase2_max_distance_m: float = Field(default=250.0)
