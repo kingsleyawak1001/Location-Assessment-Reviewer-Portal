@@ -111,21 +111,21 @@ python -m http.server 8080
 
 Hosted run (GitHub Pages):
 
-- `https://kingsleyawak1001.github.io/Location-Assessment-Reviewer-Portal/`
+- [Reviewer Portal (GitHub Pages)](https://kingsleyawak1001.github.io/Location-Assessment-Reviewer-Portal/)
 
 ## Design docs (assessment deliverables)
 
 - Canonical structured documentation:
-  - `docs/solution/README.md`
-  - `docs/solution/02_final_delivery_summary.md`
-  - `docs/solution/01_full_solution_documentation.md`
-  - `docs/solution/domains/part1_etl_pipeline.md`
-  - `docs/solution/domains/part2_database_architecture.md`
-  - `docs/solution/domains/part3_api_query_layer.md`
-  - `docs/solution/domains/part4_production_architecture.md`
-  - `docs/solution/appendix/api_playground_guide.md`
-  - `docs/solution/appendix/technology_decisions.md`
-  - `docs/solution/appendix/system_diagrams.md`
+  - [`docs/solution/README.md`](docs/solution/README.md)
+  - [`docs/solution/02_final_delivery_summary.md`](docs/solution/02_final_delivery_summary.md)
+  - [`docs/solution/01_full_solution_documentation.md`](docs/solution/01_full_solution_documentation.md)
+  - [`docs/solution/domains/part1_etl_pipeline.md`](docs/solution/domains/part1_etl_pipeline.md)
+  - [`docs/solution/domains/part2_database_architecture.md`](docs/solution/domains/part2_database_architecture.md)
+  - [`docs/solution/domains/part3_api_query_layer.md`](docs/solution/domains/part3_api_query_layer.md)
+  - [`docs/solution/domains/part4_production_architecture.md`](docs/solution/domains/part4_production_architecture.md)
+  - [`docs/solution/appendix/api_playground_guide.md`](docs/solution/appendix/api_playground_guide.md)
+  - [`docs/solution/appendix/technology_decisions.md`](docs/solution/appendix/technology_decisions.md)
+  - [`docs/solution/appendix/system_diagrams.md`](docs/solution/appendix/system_diagrams.md)
 
 ## Quality / tests
 
