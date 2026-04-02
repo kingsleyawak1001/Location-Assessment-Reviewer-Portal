@@ -414,6 +414,7 @@ class VisitStore:
         *,
         start_ts_utc: str,
         end_ts_utc: str,
+        run_id: str | None,
         west: float,
         east: float,
         south: float,
@@ -436,6 +437,9 @@ class VisitStore:
             "representative_latitude BETWEEN ? AND ?",
         ]
         params: list[Any] = [start_ts_utc, end_ts_utc, west, east, south, north]
+        if run_id is not None and run_id.strip():
+            where_clauses.append("run_id = ?")
+            params.append(run_id)
         if movement_type is not None:
             where_clauses.append("visit_kind = ?")
             params.append(movement_type)
@@ -481,6 +485,7 @@ class VisitStore:
         self,
         *,
         device_id: str,
+        run_id: str | None,
         start_ts_utc: str,
         end_ts_utc: str,
         include_pass_by: bool,
@@ -493,6 +498,9 @@ class VisitStore:
             "start_ts_utc >= ?",
             "end_ts_utc <= ?",
         ]
+        if run_id is not None and run_id.strip():
+            where_clauses.append("run_id = ?")
+            params.append(run_id)
         if not include_pass_by:
             where_clauses.append("visit_kind = 'stay'")
         params.append(limit)
@@ -528,4 +536,93 @@ class VisitStore:
             }
             for row in rows
         ]
+
+    def get_active_devices(
+        self,
+        *,
+        run_id: str | None,
+        start_ts_utc: str,
+        end_ts_utc: str,
+        include_pass_by: bool,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        params: list[Any] = [start_ts_utc, end_ts_utc]
+        where_clauses = [
+            "start_ts_utc >= ?",
+            "end_ts_utc <= ?",
+        ]
+        if run_id is not None and run_id.strip():
+            where_clauses.append("run_id = ?")
+            params.append(run_id)
+        if not include_pass_by:
+            where_clauses.append("visit_kind = 'stay'")
+        params.append(limit)
+        query = f"""
+            SELECT
+                device_id,
+                COUNT(*) AS visits_count,
+                MIN(start_ts_utc) AS earliest_visit,
+                MAX(end_ts_utc) AS latest_visit
+            FROM visits
+            WHERE {' AND '.join(where_clauses)}
+            GROUP BY device_id
+            ORDER BY visits_count DESC, device_id ASC
+            LIMIT ?
+        """
+        with self._connect() as connection:
+            rows = connection.execute(query, tuple(params)).fetchall()
+        return [
+            {
+                "device_id": str(row[0]),
+                "visits_count": int(row[1]),
+                "earliest_visit": str(row[2]),
+                "latest_visit": str(row[3]),
+            }
+            for row in rows
+        ]
+
+    def get_latest_run(self, source_contains: str | None = None) -> dict[str, Any] | None:
+        query = """
+            SELECT run_id, source_file, persisted_at
+            FROM visit_lineage
+            {where_clause}
+            ORDER BY persisted_at DESC
+            LIMIT 1
+        """
+        params: tuple[Any, ...]
+        where_clause = ""
+        if source_contains is not None and source_contains.strip():
+            where_clause = "WHERE source_file LIKE ?"
+            params = (f"%{source_contains}%",)
+        else:
+            params = ()
+        with self._connect() as connection:
+            row = connection.execute(
+                query.format(where_clause=where_clause),
+                params,
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "run_id": str(row[0]),
+            "source_file": str(row[1]),
+            "persisted_at": str(row[2]),
+        }
+
+    def get_run_time_bounds(self, run_id: str) -> dict[str, str] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT MIN(start_ts_utc), MAX(end_ts_utc)
+                FROM visits
+                WHERE run_id = ?
+                """,
+                (run_id,),
+            ).fetchone()
+        if row is None or row[0] is None or row[1] is None:
+            return None
+        return {
+            "start_ts_utc": str(row[0]),
+            "end_ts_utc": str(row[1]),
+        }
 

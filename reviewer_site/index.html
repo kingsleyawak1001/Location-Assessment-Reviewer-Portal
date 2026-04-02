@@ -12,109 +12,122 @@
   <body>
     <header class="topbar">
       <h1>Location Assessment Reviewer Portal</h1>
-      <p>Interactive documentation, stage-by-stage flow, and API playground.</p>
+      <p>Interactive API Playground with live monitoring and visual analytics.</p>
     </header>
 
-    <main class="layout">
-      <aside class="sidebar">
-        <h2>Navigation</h2>
-        <button class="nav-btn active" data-target="overview">Overview</button>
-        <button class="nav-btn" data-target="docs">Documentation Browser</button>
-        <button class="nav-btn" data-target="stages">Pipeline Stages</button>
-        <button class="nav-btn" data-target="playground">API Playground</button>
-      </aside>
-
+    <main class="layout-single">
       <section class="content">
-        <div id="overview" class="panel active">
-          <h2>Project Overview</h2>
-          <div class="card-grid">
-            <article class="card">
-              <h3>Part 1: ETL Pipeline</h3>
-              <p>Ingestion, quality filtering, visit grouping, stay classification.</p>
-            </article>
-            <article class="card">
-              <h3>Part 2: Database Architecture</h3>
-              <p>Visit fact storage, lineage model, run aggregates and query-ready shape.</p>
-            </article>
-            <article class="card">
-              <h3>Part 3: API/Query Layer</h3>
-              <p>Interactive access for map analytics and device journey use-cases.</p>
-            </article>
-            <article class="card">
-              <h3>Part 4: Production Architecture</h3>
-              <p>Scale path from local prototype to 1B+/10B+ event processing.</p>
-            </article>
-          </div>
-          <h3>End-to-End Flow</h3>
-          <pre class="mermaid">
-flowchart TB
-    A[Input CSV files] --> B[CLI run/batch/compare]
-    B --> C[Ingestion + Quality]
-    C --> D[Visit Transformation]
-    D --> E[Artifacts + SQLite Persist]
-    E --> F[API and CLI Query Layer]
-    F --> G[Interactive Consumers]
-          </pre>
-        </div>
-
-        <div id="docs" class="panel">
-          <h2>Documentation Browser</h2>
-          <div class="doc-layout">
-            <div class="doc-list" id="docList"></div>
-            <article class="doc-viewer" id="docViewer">
-              <p>Select a document to render it here.</p>
-            </article>
-          </div>
-        </div>
-
-        <div id="stages" class="panel">
-          <h2>Pipeline Stages (Clear Stage-by-Stage View)</h2>
-          <div class="card-grid">
-            <article class="card">
-              <h3>Stage 1: Ingestion and Quality</h3>
-              <ul>
-                <li>Normalize timestamp/schema.</li>
-                <li>Validate coordinates and duplicates.</li>
-                <li>Split accepted/rejected with reason tracking.</li>
-              </ul>
-            </article>
-            <article class="card">
-              <h3>Stage 2: Transformation</h3>
-              <ul>
-                <li>Segment by device, time, and distance.</li>
-                <li>Apply accuracy-aware and night-gap rules.</li>
-                <li>Classify stay/pass_by and stay_type.</li>
-              </ul>
-            </article>
-            <article class="card">
-              <h3>Stage 3: Persistence and Lineage</h3>
-              <ul>
-                <li>Persist visits into query-ready store.</li>
-                <li>Attach run lineage and artifact references.</li>
-                <li>Materialize run-level aggregates.</li>
-              </ul>
-            </article>
-            <article class="card">
-              <h3>Stage 4: Serving and Validation</h3>
-              <ul>
-                <li>Expose map and journey APIs.</li>
-                <li>Support CLI query/export commands.</li>
-                <li>Run lint/type/tests/e2e validation policy.</li>
-              </ul>
-            </article>
-          </div>
-        </div>
-
-        <div id="playground" class="panel">
+        <div id="playground" class="panel active">
           <h2>API Playground</h2>
-          <p>Use this to dynamically test API behavior and inspect charts.</p>
+          <article class="card">
+            <h3>How to Use</h3>
+            <ol>
+              <li>Select one of the 3 presets (it applies automatically).</li>
+              <li>Run <code>Map Query</code> and <code>Journey Query</code> to inspect live charts.</li>
+              <li>Or click <code>Run Full Demo</code> to execute the complete flow automatically.</li>
+              <li>Use copy buttons to export Raw Response and Execution Log.</li>
+            </ol>
+          </article>
+
+          <aside id="liveMonitorWidget" class="monitor-widget expanded">
+            <div class="monitor-header">
+              <h3>Live Monitor</h3>
+              <div class="monitor-actions">
+                <label class="monitor-toggle" for="liveUpdatesToggle">
+                  <input id="liveUpdatesToggle" type="checkbox" checked />
+                  Live updates
+                </label>
+                <button id="toggleMonitorBtn" type="button">Hide</button>
+              </div>
+            </div>
+            <div class="monitor-body">
+              <section class="monitor-section">
+                <h4>Activity Timeline</h4>
+                <div class="timeline-wrap">
+                  <div id="activityTimeline" class="timeline"></div>
+                </div>
+                <p class="muted">Latest events appear first. Feed is capped to keep UI readable.</p>
+              </section>
+
+              <section class="monitor-section">
+                <h4>Live Process Monitor</h4>
+                <div class="status-grid">
+                  <div class="status-item">
+                    <span>API connectivity</span>
+                    <span id="stateApi" class="status-badge idle">idle</span>
+                    <small id="stateApiDetail">No checks yet.</small>
+                  </div>
+                  <div class="status-item">
+                    <span>Active run resolution</span>
+                    <span id="stateRun" class="status-badge idle">idle</span>
+                    <small id="stateRunDetail">No run selected.</small>
+                  </div>
+                  <div class="status-item">
+                    <span>Preset application</span>
+                    <span id="statePreset" class="status-badge idle">idle</span>
+                    <small id="statePresetDetail">No preset applied.</small>
+                  </div>
+                  <div class="status-item">
+                    <span>Map query</span>
+                    <span id="stateMap" class="status-badge idle">idle</span>
+                    <small id="stateMapDetail">No map query executed.</small>
+                  </div>
+                  <div class="status-item">
+                    <span>Device suggestions</span>
+                    <span id="stateSuggestions" class="status-badge idle">idle</span>
+                    <small id="stateSuggestionsDetail">No suggestion lookup.</small>
+                  </div>
+                  <div class="status-item">
+                    <span>Journey query</span>
+                    <span id="stateJourney" class="status-badge idle">idle</span>
+                    <small id="stateJourneyDetail">No journey query executed.</small>
+                  </div>
+                  <div class="status-item">
+                    <span>Chart rendering</span>
+                    <span id="stateCharts" class="status-badge idle">idle</span>
+                    <small id="stateChartsDetail">No charts rendered yet.</small>
+                  </div>
+                </div>
+              </section>
+
+              <section class="monitor-section">
+                <h4>Live KPIs</h4>
+                <div class="kpi-grid">
+                  <div class="kpi-item">
+                    <span>Last API latency</span>
+                    <strong id="kpiApiLatency">-</strong>
+                  </div>
+                  <div class="kpi-item">
+                    <span>Last map cells</span>
+                    <strong id="kpiMapCells">0</strong>
+                  </div>
+                  <div class="kpi-item">
+                    <span>Last journey visits</span>
+                    <strong id="kpiJourneyVisits">0</strong>
+                  </div>
+                  <div class="kpi-item">
+                    <span>Last suggestions</span>
+                    <strong id="kpiSuggestionCount">0</strong>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </aside>
 
           <div class="playground-controls">
             <label>
               API Base URL
               <input id="apiBase" type="text" value="http://127.0.0.1:8000" />
             </label>
+            <label>
+              Preset Profile
+              <select id="presetProfile"></select>
+            </label>
+            <div>
+              <button id="runFullDemoBtn" type="button">Run Full Demo</button>
+            </div>
           </div>
+          <p id="presetDescription" class="muted"></p>
 
           <div class="split">
             <form id="mapForm" class="card">
@@ -136,7 +149,11 @@ flowchart TB
             <form id="journeyForm" class="card">
               <h3>Device Journey: <code>/api/devices/{device_id}/journey</code></h3>
               <div class="form-grid">
-                <label>device_id<input name="device_id" placeholder="paste device id" /></label>
+                <label
+                  >device_id<input
+                    name="device_id"
+                    placeholder="78805d50-5ebb-4772-a634-0301b479f300"
+                /></label>
                 <label>start_ts<input name="start_ts" value="2025-01-01T00:00:00Z" /></label>
                 <label>end_ts<input name="end_ts" value="2025-01-05T23:59:59Z" /></label>
                 <label>include_pass_by<input name="include_pass_by" value="true" /></label>
@@ -149,22 +166,34 @@ flowchart TB
           <div class="charts">
             <article class="card">
               <h3>Map Cells: Total Pings</h3>
-              <canvas id="mapBarChart"></canvas>
+              <div class="chart-wrap"><canvas id="mapBarChart"></canvas></div>
             </article>
             <article class="card">
               <h3>Journey: Duration by Visit</h3>
-              <canvas id="journeyDurationChart"></canvas>
+              <div class="chart-wrap"><canvas id="journeyDurationChart"></canvas></div>
             </article>
             <article class="card">
               <h3>Journey: Visit Kind Distribution</h3>
-              <canvas id="journeyKindChart"></canvas>
+              <div class="chart-wrap"><canvas id="journeyKindChart"></canvas></div>
             </article>
           </div>
 
-          <article class="card">
-            <h3>Raw API Response</h3>
-            <pre id="apiOutput">{}</pre>
-          </article>
+          <div class="response-grid">
+            <article class="card">
+              <h3>
+                Raw API Response
+                <button id="copyRawBtn" type="button">Copy Raw Response</button>
+              </h3>
+              <pre id="apiOutput">{}</pre>
+            </article>
+            <article class="card">
+              <h3>
+                Execution Log
+                <button id="copyLogBtn" type="button">Copy Execution Log</button>
+              </h3>
+              <pre id="executionLog">[ready] API Playground initialized.</pre>
+            </article>
+          </div>
         </div>
       </section>
     </main>
