@@ -64,4 +64,5 @@ class QualityResult(BaseModel):
     step_durations_ms: dict[str, float]
     visits_count: int = 0
     visits_path: Path | None = None
+    phase2_summary: dict[str, dict[str, int]] | None = None
 

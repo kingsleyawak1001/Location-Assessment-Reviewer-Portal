@@ -55,12 +55,24 @@ Compare primary vs alternative algorithm (Phase 1):
 uv run phase1 compare phase1 --input ../raw_pings.csv --runs 2
 ```
 
+Phase 2 grouping thresholds can be overridden via environment variables:
+
+- `PHASE1_PHASE2_MAX_GAP_SECONDS`
+- `PHASE1_PHASE2_MAX_DISTANCE_M`
+- `PHASE1_PHASE2_STAY_MIN_DURATION_SECONDS`
+- `PHASE1_PHASE2_STAY_MIN_PINGS`
+
 This generates a comparison report with:
 
 - winner by average runtime
 - quality consistency between variants
 - per-run metrics for both algorithms
 - explicit "where better" section (speed/quality)
+
+Phase 2 algorithm details and defaults:
+
+- `PHASE2_ALGORITHM.md`
+- `PHASE2_ASSUMPTIONS.md`
 
 ## Quality / tests
 

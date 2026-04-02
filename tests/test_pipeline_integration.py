@@ -4,6 +4,8 @@ import json
 import shutil
 from pathlib import Path
 
+import polars as pl
+
 from src.config.settings import AppSettings
 from src.pipeline.phase1 import run_phase1
 from src.storage.manifest_store import ManifestStore
@@ -42,6 +44,9 @@ def test_phase1_run_creates_artifacts_and_manifest(tmp_path: Path) -> None:
     assert "write_report" in report["step_durations_ms"]
     assert "visits_path" in report
     assert "visits_count" in report
+    assert "phase2_summary" in report
+    by_kind = report["phase2_summary"]["counts_by_visit_kind"]
+    assert sum(by_kind.values()) == report["visits_count"]
     manifest = ManifestStore(settings.manifest_path).load()
     assert manifest.height == 1
     assert manifest["status"][0] == "success"
@@ -127,4 +132,40 @@ def test_phase1_algorithm_comparison_repeatable_on_same_input(tmp_path: Path) ->
     assert second["quality_consistent_between_algorithms"] is True
     assert Path(first["report_path"]).exists()
     assert Path(second["report_path"]).exists()
+
+
+def test_phase2_threshold_overrides_from_settings(tmp_path: Path) -> None:
+    input_path = tmp_path / "phase2_thresholds.csv"
+    input_path.write_text(
+        (
+            "device_id,ts_utc,latitude,longitude,accuracy_m\n"
+            "dev_a,2025-01-01T10:00:00Z,10.0,20.0,5.0\n"
+            "dev_a,2025-01-01T10:05:00Z,10.0,20.0,5.0\n"
+            "dev_a,2025-01-01T10:10:00Z,10.0,20.0,5.0\n"
+        ),
+        encoding="utf-8",
+    )
+
+    default_settings = make_settings(tmp_path / "default")
+    default_result = run_phase1(input_path, settings=default_settings)
+    assert default_result is not None
+    assert default_result.visits_path is not None
+    default_visits = pl.read_parquet(default_result.visits_path)
+    assert default_visits["visit_kind"].to_list() == ["stay"]
+
+    strict_settings = AppSettings(
+        artifacts_dir=tmp_path / "strict" / "artifacts",
+        manifest_path=tmp_path / "strict" / "artifacts/manifest.db",
+        accepted_dir=tmp_path / "strict" / "artifacts/accepted",
+        rejected_dir=tmp_path / "strict" / "artifacts/rejected",
+        visits_dir=tmp_path / "strict" / "artifacts/visits",
+        reports_dir=tmp_path / "strict" / "artifacts/reports",
+        log_level="INFO",
+        phase2_stay_min_pings=4,
+    )
+    strict_result = run_phase1(input_path, settings=strict_settings)
+    assert strict_result is not None
+    assert strict_result.visits_path is not None
+    strict_visits = pl.read_parquet(strict_result.visits_path)
+    assert strict_visits["visit_kind"].to_list() == ["pass_by"]
 

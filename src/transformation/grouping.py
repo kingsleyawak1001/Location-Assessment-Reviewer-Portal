@@ -193,3 +193,31 @@ def group_pings_into_visits(
     )
     return grouped
 
+
+def summarize_visits(visits_df: pl.DataFrame) -> dict[str, dict[str, int]]:
+    if visits_df.height == 0:
+        return {
+            "counts_by_visit_kind": {},
+            "counts_by_stay_type": {},
+        }
+
+    by_kind = (
+        visits_df.group_by("visit_kind")
+        .agg(pl.len().alias("count"))
+        .iter_rows(named=True)
+    )
+    by_stay_type = (
+        visits_df.filter(pl.col("stay_type").is_not_null())
+        .group_by("stay_type")
+        .agg(pl.len().alias("count"))
+        .iter_rows(named=True)
+    )
+    return {
+        "counts_by_visit_kind": {
+            str(row["visit_kind"]): int(row["count"]) for row in by_kind
+        },
+        "counts_by_stay_type": {
+            str(row["stay_type"]): int(row["count"]) for row in by_stay_type
+        },
+    }
+

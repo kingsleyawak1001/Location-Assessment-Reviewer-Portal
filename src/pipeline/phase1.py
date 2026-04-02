@@ -12,7 +12,7 @@ from src.ingestion.csv_reader import read_raw_csv
 from src.quality.validator import quality_counts_by_reason, validate_quality
 from src.storage.artifact_store import ArtifactStore
 from src.storage.manifest_store import ManifestStore
-from src.transformation.grouping import group_pings_into_visits
+from src.transformation.grouping import group_pings_into_visits, summarize_visits
 from src.utils.checksum import file_sha256
 from src.utils.logging import get_logger
 
@@ -85,7 +85,14 @@ def run_phase1(
 
         current_step = "transform_visits"
         transform_step_start_ns = perf_counter_ns()
-        visits = group_pings_into_visits(accepted)
+        visits = group_pings_into_visits(
+            accepted,
+            max_gap_seconds=settings.phase2_max_gap_seconds,
+            max_distance_m=settings.phase2_max_distance_m,
+            stay_min_duration_seconds=settings.phase2_stay_min_duration_seconds,
+            stay_min_pings=settings.phase2_stay_min_pings,
+        )
+        phase2_summary = summarize_visits(visits)
         step_durations_ms["transform_visits"] = step_elapsed_ms(transform_step_start_ns)
 
         current_step = "persist_outputs"
@@ -117,6 +124,7 @@ def run_phase1(
             "rejected_path": str(rejected_path),
             "visits_path": str(visits_path),
             "visits_count": visits.height,
+            "phase2_summary": phase2_summary,
             "total_duration_ms": total_duration_ms,
             "step_durations_ms": step_durations_ms,
         }
@@ -155,6 +163,7 @@ def run_phase1(
                     "accepted": accepted.height,
                     "rejected": rejected.height,
                     "visits": visits.height,
+                    "phase2_summary": phase2_summary,
                     "algorithm": ingestion_algorithm,
                     "total_duration_ms": total_duration_ms,
                     "step_durations_ms": step_durations_ms,
@@ -176,6 +185,7 @@ def run_phase1(
             step_durations_ms=step_durations_ms,
             visits_count=visits.height,
             visits_path=visits_path,
+            phase2_summary=phase2_summary,
         )
     except Exception as exc:
         total_duration_ms = round((perf_counter_ns() - run_start_ns) / 1_000_000, 3)

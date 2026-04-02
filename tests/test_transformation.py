@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import polars as pl
 
-from src.transformation.grouping import group_pings_into_visits
+from src.transformation.grouping import group_pings_into_visits, summarize_visits
 
 
 def test_grouping_produces_stay_and_pass_by() -> None:
@@ -83,3 +83,33 @@ def test_stay_type_defaults_to_home_work_other_rules() -> None:
     assert visits.height == 3
     assert visits["visit_kind"].to_list() == ["stay", "stay", "stay"]
     assert visits["stay_type"].to_list() == ["home", "work", "other"]
+
+
+def test_visit_summary_counts_are_consistent() -> None:
+    visits = pl.DataFrame(
+        {
+            "visit_id": ["a", "b", "c", "d"],
+            "device_id": ["d1", "d1", "d2", "d2"],
+            "visit_kind": ["stay", "pass_by", "stay", "stay"],
+            "stay_type": ["home", None, "work", "other"],
+            "start_ts_utc": [
+                "2025-01-01T00:00:00Z",
+                "2025-01-01T01:00:00Z",
+                "2025-01-01T02:00:00Z",
+                "2025-01-01T03:00:00Z",
+            ],
+            "end_ts_utc": [
+                "2025-01-01T00:10:00Z",
+                "2025-01-01T01:05:00Z",
+                "2025-01-01T03:00:00Z",
+                "2025-01-01T04:00:00Z",
+            ],
+            "duration_seconds": [600, 300, 3600, 3600],
+            "ping_count": [3, 2, 6, 5],
+            "representative_latitude": [10.0, 10.1, 11.0, 11.1],
+            "representative_longitude": [20.0, 20.1, 21.0, 21.1],
+        }
+    )
+    summary = summarize_visits(visits)
+    assert summary["counts_by_visit_kind"] == {"stay": 3, "pass_by": 1}
+    assert summary["counts_by_stay_type"] == {"home": 1, "work": 1, "other": 1}
